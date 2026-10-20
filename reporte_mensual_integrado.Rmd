@@ -1,0 +1,1067 @@
+---
+ title: ''
+ output:
+   html_document:
+     css: "style_sin.css"
+ params:
+   tabla_inhumacion_csv: ""
+   corte_inhumacion: ""
+   excel_descarga: ""
+---
+
+```{css, echo=F}
+ # @font-face {
+ #    font-family: Nutria;
+ #    src: url('/Users/gobierno.seguridad/Documents/Seguridad/plataforma_seguridad_completa/reporte_mensual/Nutmeg-Book.otf') format("opentype");
+ # }
+ # 
+ # @font-face {
+ #    font-family: Montserrat;
+ #    src: url('/Users/gobierno.seguridad/Documents/Seguridad/plataforma_seguridad_completa/reporte_mensual/Montserrat-Regular.ttf') format("opentype");
+ # }
+ # 
+ # @media only screen and (max-width: 850px)
+ # 
+ # body {
+ #   font-family: Montserrat;
+ #   background-color: "#FFFFFF";
+ #   font-size: 60px;
+ # }
+ # 
+ # 
+ # h1 {
+ #   font-family: Montserrat;
+ #   background-color: "#FFFFFF";
+ #   font-size: 40px;
+ # }
+
+# h4 {
+#   font-family: Montserrat;
+#   background-color: "#FFFFFF";
+#   font-size: 25px;
+# }
+#
+# h2 {
+#   font-family: Montserrat;
+#   background-color: "#FFFFFF";
+#   font-size: 32px;
+# }
+#
+#  .button {
+#   border: none;
+#   color: white;
+#   padding: 15px 32px;
+#   text-align: center;
+#   text-decoration: none;
+#   display: inline-block;
+#   font-size: 16px;
+#   margin: 4px 2px;
+#   cursor: pointer;
+#  }
+# 
+# .button1 {background-color: #4CAF50;} /* Green */
+# .button2 {background-color: #008CBA;} /* Blue */
+```
+
+```{r, include=FALSE, message=F, warning=FALSE}
+library(readr)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(ggplot2)
+library(ggrepel)
+library(zoo)
+library(stringr)
+library(showtext)
+library(knitr)
+library(kableExtra)
+library(formattable)
+library(plotly)
+library(htmltools)
+
+# Python prepara esta tabla desde PostgreSQL; el Rmd no consulta la base.
+if (!nzchar(params$tabla_inhumacion_csv) || !file.exists(params$tabla_inhumacion_csv)) {
+  stop("Falta tabla_inhumacion_csv: ejecuta primero el generador de Python.")
+}
+corte_inhumacion <- as.Date(params$corte_inhumacion)
+if (is.na(corte_inhumacion)) stop("Falta un corte_inhumacion válido (AAAA-MM-DD).")
+excel_descarga <- basename(params$excel_descarga)
+if (!grepl("^[A-Za-z0-9._-]+\\.xlsx$", excel_descarga)) {
+  stop("Falta el nombre del Excel descargable del mes.")
+}
+meses_inhumacion <- c("enero", "febrero", "marzo", "abril", "mayo", "junio",
+                       "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre")
+fecha_corte_inhumacion <- paste(day(corte_inhumacion), "de",
+                                meses_inhumacion[month(corte_inhumacion)], "de",
+                                year(corte_inhumacion))
+tabla_inhumacion <- read.csv(params$tabla_inhumacion_csv, check.names=FALSE,
+                             stringsAsFactors=FALSE, fileEncoding="UTF-8")
+columnas_inhumacion <- c("Mes de inicio de procesamiento",
+                         "Número de sitios registrados",
+                         "Total preliminar de víctimas localizadas")
+if (!identical(names(tabla_inhumacion), columnas_inhumacion) || nrow(tabla_inhumacion) == 0) {
+  stop("El CSV de inhumación no tiene las tres columnas esperadas o está vacío.")
+}
+
+data <- read_rds("/Users/gobierno.seguridad/Documents/Seguridad/plataforma_seguridad_completa/laboratorio_datos/app/data/data_prueba.rds")
+
+data$mes_anio <- as.yearmon(data$fecha, "%m/%Y")
+data <- data %>%
+  mutate(Zona=case_when(
+    clave_mun==39 | clave_mun==120 | clave_mun==124 | clave_mun==97 |
+      clave_mun==98 | clave_mun==101 | clave_mun==44 |
+      clave_mun==70 | clave_mun==51 ~ "AMG",
+    TRUE ~ "Interior"
+  ))
+#le incluimos los tipos de letra
+    font_add("Montserrat",
+             "Montserrat-Regular.ttf")
+    font_families()
+    Montserrat <- "Montserrat"
+    showtext_auto()
+
+    monse <- list(
+  family = "Montserrat")
+
+
+#nombramos al mes y año
+mes <- str_to_sentence(month(max(data$fecha), abbr = F, label = T)) 
+año <- year(max(data$fecha))
+#hacemos el data frame de la relación de bienes jurídicos con los delitos
+tesi <- data %>% group_by(bien_afectado, delito) %>% 
+  dplyr::summarise(tesi=n()) %>% dplyr::select(bien_afectado, delito) %>% 
+  rename(Delito=delito)
+#creamos la base de datos para la gráfica de incidencia
+incidencia_zona <- data %>% group_by(mes_anio, Zona) %>% 
+  summarise(Total=n()) %>%
+  spread(key = Zona, value = Total)
+incidencia_estado <- data %>% group_by(mes_anio) %>% 
+  summarise(Total=n())
+incidencia_total <- left_join(incidencia_estado, incidencia_zona, by="mes_anio")
+incidencia_total <- incidencia_total %>% 
+  gather(Zona, Carpetas, Total, AMG, Interior)
+# incidencia_total <- incidencia_total[2:4]
+incidencia_prom <- incidencia_total %>% 
+  mutate(year=year(mes_anio)) %>% filter(Zona=="Total" & year<2023) %>% 
+  group_by(year) %>% summarise(Media=mean(Carpetas))
+incidencia_prom$year <- as.factor(incidencia_prom$year)
+incidencia_prom <- incidencia_prom %>% rename(Año=year)
+  
+incidencia <- incidencia_total %>% 
+  rename(Fecha=mes_anio) %>%
+  ggplot() + geom_point(aes(x=Fecha, y=Carpetas, colour=Zona)) +
+  geom_line(aes(x=Fecha, y=Carpetas, colour=Zona)) +
+  geom_hline(aes(yintercept=Media, colour=Año), incidencia_prom, linetype='dashed', size=0.8) +
+  # geom_text_repel(data=incidencia_total, aes(x=Fecha, y=Carpetas, label=Carpetas, group=Zona),
+  #             vjust = -0.5, hjust = 0.5, size = 4.2) +
+  # geom_label(data=incidencia_prom, aes(y=Media, 
+  #                                       label=round(Media,0), group=Año), x=2017,
+  #           fontface='bold', size=3.5) + 
+    xlab("Meses") +
+      scale_color_manual(labels= c("Promedio 2017", "Promedio 2018", "Promedio 2019", 
+                                   "Promedio 2020","Promedio 2021","Promedio 2022",
+                                   "AMG", "Interior", "Total Estado"),
+                        values = c("#440154", "#404788", "#238A8D", "#55C667","#91D450","#FF9F26",
+                                "#96B5AC", "#58A690", "#303040"),
+                     guide=guide_legend(override.aes=list(linetype=c(2,2,2,2,2,2,1,1,1), 
+                                                          lwd=c(0.5,0.5,0.5, 0.5,0.5, 0.5,1,1,1), 
+                                                          shape=''))) + theme_minimal()+
+  theme(text = element_text(family = "Montserrat"),
+    legend.position = 'bottom', legend.direction = 'horizontal', legend.title=element_blank(),
+            legend.spacing.x = unit(0.5, 'cm') , 
+            legend.text = element_text(size = 12),
+        legend.key.size = unit(2, 'cm'),
+        legend.key.height = unit(2, 'cm'),
+        legend.key.width = unit(4, 'cm'))
+  
+
+              
+#creamos la base de datos para la gráfica de homicidios-eventos
+homicidio_zona <- data %>% filter(delito=="Homicidio doloso") %>%
+  group_by(mes_anio, Zona) %>% 
+  summarise(Total=n()) %>%
+  spread(key = Zona, value = Total)
+homicidio_estado <- data %>% filter(delito=="Homicidio doloso") %>%
+  group_by(mes_anio) %>% 
+  summarise(Total=n())
+homicidio_total <- left_join(homicidio_estado, homicidio_zona, by="mes_anio")
+homicidio_total <- homicidio_total %>% 
+  gather(Zona, Carpetas, Total, AMG, Interior)
+# homicidio_total <- homicidio_total[2:4]
+homicidio_prom <- homicidio_total %>% 
+  mutate(year=year(mes_anio)) %>% filter(Zona=="Total" & year<2023) %>% 
+  group_by(year) %>% summarise(Media=mean(Carpetas))
+
+homicidio_prom$year <- as.factor(homicidio_prom$year)
+homicidio_prom <- homicidio_prom %>% rename(Año=year)
+  
+homicidio_evento <- homicidio_total %>% 
+  rename(Fecha=mes_anio) %>% ggplot() + geom_point(aes(x=Fecha, y=Carpetas, colour=Zona)) +
+  geom_line(aes(x=Fecha, y=Carpetas, colour=Zona)) +
+  geom_hline(aes(yintercept=Media, colour=Año), homicidio_prom, linetype='dashed', size=0.8) +
+  # geom_text_repel(data=homicidio_total, aes(x=Fecha, y=Carpetas, label=Carpetas, group=Zona),
+  #             vjust = -0.5, hjust = 0.5, size = 4.5) +
+  # geom_label(data=homicidio_prom, aes(y=Media, 
+  #                                       label=round(Media,0), group=year), x=2017,
+  #           fontface='bold', size=3.5) + 
+    xlab("Meses") +
+  scale_color_manual(labels= c("Promedio 2017", "Promedio 2018", "Promedio 2019", 
+                                   "Promedio 2020","Promedio 2021","Promedio 2022",
+                                   "AMG", "Interior", "Total Estado"),
+                     values = c("#440154", "#404788", "#238A8D", "#55C667","#91D450","#FF9F26",
+                                "#96B5AC", "#58A690", "#303040"),
+                     guide=guide_legend(override.aes=list(linetype=c(2,2,2,2,2,2,1,1,1), 
+                                                          lwd=c(0.5,0.5,0.5, 0.5,0.5, 0.5,1,1,1), 
+                                                          shape=''))) + theme_minimal() +
+  theme(legend.position = 'bottom', legend.direction = 'horizontal', legend.title=element_blank(),
+            legend.spacing.x = unit(0.5, 'cm') , 
+            legend.text = element_text(size = 12),
+        legend.key.size = unit(2, 'cm'),
+        legend.key.height = unit(2, 'cm'),
+        legend.key.width = unit(4, 'cm'))
+
+#creamos la base de datos para la gráfica de homicidios-víctimas
+data$victimas <- ifelse(is.na(data$victimas),
+                        1, data$victimas)
+homicidio_vic_zona <- data %>% filter(delito=="Homicidio doloso") %>%
+  group_by(mes_anio, Zona) %>% 
+  summarise(Total=sum(victimas)) %>%
+  spread(key = Zona, value = Total)
+homicidio_vic_estado <- data %>% filter(delito=="Homicidio doloso") %>%
+  group_by(mes_anio) %>% 
+  summarise(Total=sum(victimas))
+homicidio_vic_total <- left_join(homicidio_vic_estado, homicidio_vic_zona, by="mes_anio")
+homicidio_vic_total <- homicidio_vic_total %>% 
+  gather(Zona, Carpetas, Total, AMG, Interior)
+# homicidio_vic_total <- homicidio_vic_total[2:4]
+homicidio_vic_prom <- homicidio_vic_total %>% 
+  mutate(year=year(mes_anio)) %>% filter(Zona=="Total" & year<2023) %>% 
+  group_by(year) %>% summarise(Media=mean(Carpetas))
+homicidio_vic_prom$year <- as.factor(homicidio_vic_prom$year)
+  
+homicidio_victimas <- homicidio_vic_total %>% ggplot() + geom_point(aes(x=mes_anio, y=Carpetas, colour=Zona)) +
+  geom_line(aes(x=mes_anio, y=Carpetas, colour=Zona)) +
+  geom_hline(aes(yintercept=Media, colour=year), homicidio_vic_prom, linetype='dashed', size=0.8) +
+  geom_text_repel(data=homicidio_vic_total, aes(x=mes_anio, y=Carpetas, label=Carpetas, group=Zona),
+              vjust = -0.5, hjust = 0.5, size = 4) +
+  geom_label(data=homicidio_vic_prom, aes(y=Media, 
+                                        label=round(Media,0), group=year), x=2017,
+            fontface='bold', size=3.5) + 
+    xlab("Meses") +
+      scale_color_manual(labels= c("Promedio 2017", "Promedio 2018", "Promedio 2019", 
+                                   "Promedio 2020","Promedio 2021","Promedio 2022",
+                                   "AMG", "Interior", "Total Estado"),
+                     values = c("#440154", "#404788", "#238A8D", "#55C667","#91D450","#FF9F26",
+                                "#96B5AC", "#58A690", "#303040"),
+                     guide=guide_legend(override.aes=list(linetype=c(2,2,2,2,2,2,1,1,1), 
+                                                          lwd=c(0.5,0.5,0.5, 0.5,0.5, 0.5,1,1,1), 
+                                                          shape=''))) + theme_minimal() +
+  theme(legend.position = 'bottom', legend.direction = 'horizontal', 
+        legend.title=element_blank(), 
+            legend.text = element_text(size = 12),
+        #legend.key.size = unit(5, 'cm'),
+        legend.key.height = unit(1, 'cm'),
+        legend.key.width = unit(1, 'cm'))
+#vamos a realizar la tabla de comparación del mes con el mes anterior. con el promedios de los 12 meses previos
+today <- ymd(paste0(year(max(data$fecha)), "-",
+                    month(max(data$fecha)), "-01"))
+prev <- today %m-% months(12)
+#creamos filtro del mes actual y los 12 meses previos
+ultimos_meses <- data %>% filter(fecha>= prev) 
+meses_previos <- ultimos_meses %>% filter(fecha< today) %>% 
+  group_by(delito, Zona) %>% 
+  summarise(Total=sum(victimas)) %>%
+  mutate(Media=round(Total/12,2)) %>% select(-Total) %>%
+  spread(key = Zona, value = Media) %>%
+  mutate(Amg=ifelse(is.na(AMG), 0, AMG),
+         Interior=ifelse(is.na(Interior), 0, Interior),
+         Total=AMG+Interior) %>% 
+  select(delito, Total, AMG, Interior) %>%
+  rename(Delito=delito, `Total promedio`=Total,
+         `AMG promedio`=AMG,
+         `Interior promedio`=Interior)
+mes_actual <- ultimos_meses %>% filter(fecha>= today) %>% 
+  group_by(delito, Zona) %>% 
+  summarise(Total=sum(victimas)) %>%
+  mutate(Media=round(Total/1,2)) %>% select(-Total) %>%
+  spread(key = Zona, value = Media) %>%
+  mutate(Amg=ifelse(is.na(AMG), 0, AMG),
+         Interior=ifelse(is.na(Interior), 0, Interior),
+         Total=AMG+Interior) %>% 
+  select(delito, Total, AMG, Interior) %>%
+  rename(Delito=delito) 
+
+meses_total <- left_join(meses_previos, mes_actual, by="Delito")
+# colnames(meses_total) <- c("Delito", "Total", "AMG", "Interior",
+#                             "Total", "AMG", "Interior")
+
+meses_total[is.na(meses_total)] <- 0
+
+
+
+browny <- str_to_sentence(paste0(month(max(data$fecha), label = T, abbr = F), " ", 
+                            year(max(data$fecha)))) 
+oli_triste <- tesi %>% right_join(meses_total, by="Delito") %>% ungroup() %>% 
+  arrange(bien_afectado) %>% select(-bien_afectado)
+
+imgTotal <- case_when(oli_triste$`Total promedio`> oli_triste$Total ~ "verde.jpg",
+                      oli_triste$`Total promedio`< oli_triste$Total ~ "rojo.jpg", 
+                      TRUE ~ "equal.png")
+imgAMG <- case_when(oli_triste$`AMG promedio`> oli_triste$AMG ~ "verde.jpg",
+                    oli_triste$`AMG promedio`< oli_triste$AMG ~ "rojo.jpg", 
+                      TRUE ~ "equal.png")
+imgInterior <- case_when(oli_triste$`Interior promedio`> oli_triste$Interior ~ "verde.jpg",
+                         oli_triste$`Interior promedio`< oli_triste$Interior ~ "rojo.jpg", 
+                      TRUE ~ "equal.png")
+
+comparativa_mes <- oli_triste %>% 
+ #  mutate(
+ #   # Delito=(Delito),
+ #   # `Total promedio`=(`Total promedio`),
+ #   # AMG promedio=(`AMG promedio`),
+ #   # Interior promedio=(`Interior promedio`),
+ #   Total=ifelse(`Total promedio`<Total,
+ #              cell_spec(Total, "html", background = "#DC6464", color="black"),
+ #              cell_spec(Total, "html", background = "#75DC64", color="black")),
+ #   AMG=ifelse(`AMG promedio`<AMG,
+ #              cell_spec(AMG, "html", background = "#DC6464", color="black"),
+ #              cell_spec(AMG, "html", background = "#75DC64", color="black")),
+ #   Interior=ifelse(`Interior promedio`<Interior,
+ #              cell_spec(Interior, "html", background = "#DC6464", color="black"),
+ #              cell_spec(Interior, "html", background = "#75DC64", color="black"))
+ #   
+ # ) %>%
+  kable("html", escape = F) %>% 
+  kable_styling("hover", full_width = T, font_size = 15, html_font = "Montserrat") %>%
+  add_header_above(c("", "Promedio 12 meses previos"=3, 
+                     setNames(3, browny))) %>%
+  column_spec(1, bold = T, border_right = T) %>%
+  column_spec(4, border_right = T) %>% 
+  column_spec(5, image = spec_image(imgTotal, 50, 50)) %>% 
+  column_spec(6, image = spec_image(imgAMG, 50, 50)) %>% 
+  column_spec(7, image = spec_image(imgInterior, 50, 50)) %>%
+  kableExtra::group_rows(group_label = "El patrimonio",
+                         start_row = 1, end_row = 10) %>%
+    kableExtra::group_rows(group_label = "La familia",
+                         start_row = 11, end_row = 11) %>%
+      kableExtra::group_rows(group_label = "La libertad y la seguridad sexual",
+                         start_row = 12, end_row = 13) %>%
+      kableExtra::group_rows(group_label = "La vida y la integridad corporal",
+                         start_row = 14, end_row = 16)
+
+  
+  
+  
+
+# library(knitr)
+# library(kableExtra)
+# library(formattable)
+# library(dplyr)
+# 
+# browny <- str_to_sentence(paste0(month(max(data$fecha), label = T, abbr = F), " ", 
+#                             year(max(data$fecha)))) 
+# comparativa_mes <- meses_total  %>% mutate(
+#    Delito=(Delito),
+#    `Total promedio`=(`Total promedio`),
+#    `AMG promedio`=(`AMG promedio`),
+#    `Interior promedio`=(`Interior promedio`),
+#    Total=ifelse(`Total promedio`<Total,
+#               cell_spec(Total, "html", background = "#DC6464", color="black"),
+#               cell_spec(Total, "html", background = "#75DC64", color="black")),
+#    AMG=ifelse(`AMG promedio`<AMG,
+#               cell_spec(AMG, "html", background = "#DC6464", color="black"),
+#               cell_spec(AMG, "html", background = "#75DC64", color="black")),
+#    Interior=ifelse(`Interior promedio`<Interior,
+#               cell_spec(Interior, "html", background = "#DC6464", color="black"),
+#               cell_spec(Interior, "html", background = "#75DC64", color="black"))
+#    
+#  ) %>%
+#   #select(Delito, everything()) %>%
+#   kable("html", escape = F) %>%
+#   kable_styling("hover", full_width = T, font_size = 15, html_font = "Montserrat") %>%
+#   add_header_above(c("", "Promedio 12 meses previos"=3, 
+#                      setNames(3, browny))) %>%
+#   column_spec(1, bold = T, border_right = T) %>%
+#   column_spec(4, border_right = T) 
+
+
+##Cambiar nombre del archivo
+  ##Cambiar nombre del archivo
+data_homicidios <- read.csv("/Users/gobierno.seguridad/Documents/Seguridad/plataforma_seguridad_completa/reporte_mensual/homicidio.csv", header=TRUE, stringsAsFactors=FALSE,encoding = "latin1")
+data_homicidios <- data_homicidios %>% rename(Total=Estado)
+
+data_homicidios <- data_homicidios %>% 
+  mutate(Fecha=dmy(mes),
+         mes_anio=as.yearmon(Fecha, "%m/%Y"))
+data_homicidios <- data_homicidios %>% gather(Zona, Total, AMG:Total)
+
+homicidio_eve_prom <- data_homicidios %>% 
+  mutate(year=year(mes_anio)) %>% filter(Zona=="Total", year<2023, tipo=="EVENTOS") %>% 
+  group_by(year) %>% summarise(Media=mean(Total))
+homicidio_eve_prom$Año <- as.factor(homicidio_eve_prom$year)
+
+homicidio_vic_prom <- data_homicidios %>% 
+  mutate(year=year(mes_anio)) %>% filter(Zona=="Total", year<2023, tipo=="VICTIMAS") %>% 
+  group_by(year) %>% summarise(Media=mean(Total))
+homicidio_vic_prom$Año <- as.factor(homicidio_vic_prom$year)
+
+gr_hom_eventos <- data_homicidios %>% filter(tipo=="EVENTOS") %>% 
+  select(-Fecha) %>% 
+  rename(Fecha=mes_anio) %>% 
+  ggplot() + geom_point(aes(x=Fecha, y=Total, colour=Zona)) +
+  geom_line(aes(x=Fecha, y=Total, colour=Zona)) +
+  geom_hline(aes(yintercept=Media, colour=Año), homicidio_eve_prom, linetype='dashed', size=0.8) +
+  # geom_text_repel(data=homicidio_vic_total, aes(x=mes_anio, y=Carpetas, label=Carpetas, group=Zona),
+  #             vjust = -0.5, hjust = 0.5, size = 4) +
+  # geom_label(data=homicidio_vic_prom, aes(y=Media, 
+  #                                       label=round(Media,0), group=year), x=2017,
+  #           fontface='bold', size=3.5) + 
+    xlab("Meses") +
+      scale_color_manual(labels= c("Promedio 2017", "Promedio 2018", "Promedio 2019", 
+                                   "Promedio 2020","Promedio 2021",
+                                   "AMG", "Interior", "Total Estado"),
+                        values = c("#440154", "#404788", "#238A8D", "#55C667","#91D450","#FF9F26",
+                                "#96B5AC", "#58A690", "#303040"),
+                     guide=guide_legend(override.aes=list(linetype=c(2,2,2,2,2,2,1,1,1), 
+                                                          lwd=c(0.5,0.5,0.5, 0.5,0.5, 0.5,1,1,1), 
+                                                          shape=''))) + theme_minimal() +
+  theme(text = element_text(family = "Montserrat"),
+    legend.position = 'bottom', legend.direction = 'horizontal', legend.title=element_blank(), 
+            legend.text = element_text(size = 12),
+        #legend.key.size = unit(5, 'cm'),
+        legend.key.height = unit(1, 'cm'),
+        legend.key.width = unit(1, 'cm'))
+
+
+gr_hom_vic <- data_homicidios %>% filter(tipo=="VICTIMAS") %>% 
+  select(-Fecha) %>% 
+  rename(Fecha=mes_anio) %>% 
+  ggplot() + geom_point(aes(x=Fecha, y=Total, colour=Zona)) +
+  geom_line(aes(x=Fecha, y=Total, colour=Zona)) +
+  geom_hline(aes(yintercept=Media, colour=Año), homicidio_vic_prom, linetype='dashed', size=0.8) +
+  # geom_text_repel(data=homicidio_vic_total, aes(x=mes_anio, y=Carpetas, label=Carpetas, group=Zona),
+  #             vjust = -0.5, hjust = 0.5, size = 4) +
+  # geom_label(data=homicidio_vic_prom, aes(y=Media, 
+  #                                       label=round(Media,0), group=year), x=2017,
+  #           fontface='bold', size=3.5) + 
+    xlab("Meses") +
+      scale_color_manual(labels= c("Promedio 2017", "Promedio 2018", "Promedio 2019", 
+                                   "Promedio 2020","Promedio 2021",
+                                   "AMG", "Interior", "Total Estado"),
+                        values = c("#440154", "#404788", "#238A8D", "#55C667","#91D450","#FF9F26",
+                                "#96B5AC", "#58A690", "#303040"),
+                     guide=guide_legend(override.aes=list(linetype=c(2,2,2,2,2,2,1,1,1), 
+                                                          lwd=c(0.5,0.5,0.5, 0.5,0.5, 0.5,1,1,1), 
+                                                          shape=''))) + theme_minimal() +
+  theme(text = element_text(family = "Montserrat"),
+    legend.position = 'bottom', legend.direction = 'horizontal', legend.title=element_blank(), 
+            legend.text = element_text(size = 12),
+        #legend.key.size = unit(5, 'cm'),
+        legend.key.height = unit(1, 'cm'),
+        legend.key.width = unit(1, 'cm'))
+```
+
+<div>
+
+<a  href="https://www.iieg.gob.mx/plataforma_seguridad/#/home" target="_blank" rel="noopener noreferrer"> <img src="jalcomovamos-logos_nov_2022.png"/> </a>
+
+</div>
+
+<p> </p>
+
+<p> </p>
+
+<center>
+
+<h1 style="font-weight: bold; color:black;">
+
+Reporte mensual
+
+</h1>
+
+</center>
+
+<p> </p>
+
+<p> </p>
+
+<p style="text-align: justify;">
+
+Se presenta la información de las carpetas de investigación iniciadas en la Fiscalía Estatal por delitos del fuero común. La información puede actualizarse mes con mes debido a los cambios jurídicos de algunas carpetas de investigación. Corte de información al **`r day(max(data$fecha))`** de **`r mes`** de **`r año`**.
+
+</p>
+
+<p> </p>
+
+<div>
+
+<center><a href="`r excel_descarga`" download><button style="background-color: #303040; color:white; font-text:15px;">Descargar reporte del mes</button> </a></center>
+
+</div>
+
+<p> </p>
+
+<p> </p>
+
+<center>
+
+<h3 style="font-weight: bold; color:black;">
+
+Incidencia delictiva total
+
+</h3>
+
+<center>
+
+```{r, echo=FALSE, fig.width=10, fig.height=5, message=F, warning=FALSE}
+
+incidencia  <- incidencia  +
+  scale_x_yearmon(breaks = seq(from = min(incidencia_total$mes_anio), to = max(incidencia_total$mes_anio), length.out = 13),
+                  format = "%b-%Y")+
+    theme(axis.text.x = element_text(angle = 90))
+  ggplotly(incidencia) %>% layout(font=monse)
+
+```
+
+<div style="text-align: justify; font-family:Montserrat;">
+
+En la gráfica se contemplan los siguientes 16 delitos: Abuso sexual, feminicidio, homicidio doloso, lesiones dolosas, robo a bancos, robo a carga pesada, robo a cuentahabientes, robo a interior de vehículo, robo a negocio, robo a persona, robo de vehículos particulares, robo a casa habitación, robo de autopartes, robo de motocicleta, violación y violencia familiar
+
+<div/>
+
+<p> </p>
+
+<p> </p>
+
+<center>
+
+<h3 style="font-weight: bold; color:black;">
+
+Homicidios dolosos - eventos
+
+</h3>
+
+<center>
+
+```{r, echo=FALSE, fig.width=10, fig.height=5, message=F, warning=FALSE}
+gr_hom_eventos <- gr_hom_eventos  +
+  scale_x_yearmon(breaks = seq(from = min(incidencia_total$mes_anio), to = max(incidencia_total$mes_anio), length.out = 13),
+                  format = "%b-%Y")+
+    theme(axis.text.x = element_text(angle = 90))
+ggplotly(gr_hom_eventos) %>% layout(font=monse)
+
+```
+
+<p> </p>
+
+<p> </p>
+
+<center>
+
+<h3 style="font-weight: bold; color:black;">
+
+Homicidios dolosos - víctimas
+
+</h3>
+
+<center>
+
+```{r, echo=FALSE, fig.width=10, fig.height=5, message=F, warning=FALSE}
+gr_hom_vic <- gr_hom_vic  +
+  scale_x_yearmon(breaks = seq(from = min(incidencia_total$mes_anio), to = max(incidencia_total$mes_anio), length.out = 13),
+                  format = "%b-%Y")+
+    theme(axis.text.x = element_text(angle = 90))
+ggplotly(gr_hom_vic) %>% layout(font=monse)
+
+```
+
+<p> </p>
+
+<p> </p>
+
+<center>
+
+<h3 style="font-weight: bold; color:black;">
+
+Promedio mensual de delitos
+
+</h3>
+
+<center>
+
+```{r, echo=FALSE, fig.width=15, fig.height=12}
+comparativa_mes
+```
+
+<div style="text-align: justify; font-family:Montserrat;">
+
+En la tabla anterior, las celdas en rojo significan un aumento comparado con el promedio (12 meses anteriores) de la misma variable, en verde significa una disminución.
+
+<div/>
+
+<p> </p>
+
+<p> </p>
+
+<p> </p>
+
+<p> </p>
+
+```{r, include=FALSE}
+colorize <- function(x, color) {
+  if (knitr::is_latex_output()) {
+    sprintf("\\textcolor{%s}{%s}", color, x)
+  } else if (knitr::is_html_output()) {
+    sprintf("<span style='color: %s;'>%s</span>", color, 
+      x)
+  } else x
+}
+
+comportamiento_patrimoniales <- data %>% filter(fecha>=today & bien_afectado=="El patrimonio") %>%
+  group_by(delito, Zona, violencia) %>% summarise(Total=n())
+patrimonio_delito <- comportamiento_patrimoniales %>% group_by(delito) %>% 
+  summarise(Total=sum(Total)) %>%
+  ggplot() + geom_bar(aes(delito, Total), stat = "identity", 
+                      colour="#C1CED9", fill="#C1CED9") +
+  geom_text(aes(delito, Total*1.05,label=Total), size=5) +
+  theme_minimal() + theme(text = element_text(family = "Montserrat", size=14),
+                          axis.text.x = element_text(angle = 70, hjust = 1, size = 14),
+                          ) +
+  xlab("Delito")
+
+patrimonio_zona <- comportamiento_patrimoniales %>% group_by(delito, Zona) %>% 
+  summarise(Total=sum(Total)) %>%
+  ggplot() + geom_bar(aes(delito, Total, fill=Zona),
+                      stat = "identity") +
+  scale_fill_manual(values = c("#C1CED9", "#58A690")) +
+  geom_text(aes(delito, Total*1.15,label=Total, group=Zona),colour="black", size=6) +
+  theme_minimal() + 
+  theme(text = element_text(family = "Montserrat", size=14),
+        axis.text.x = element_text(angle = 70, hjust = 1, size = 14)) +
+  xlab("Delito")
+
+patrimonio_violencia <- comportamiento_patrimoniales %>% group_by(violencia) %>% 
+  summarise(Total=sum(Total)) %>%
+  ggplot() + geom_bar(aes(violencia, Total), stat = "identity", 
+                      colour="#C1CED9", fill="#C1CED9") +
+  geom_text(aes(violencia, Total*1.10,label=Total), size=6) +
+  theme_minimal() + 
+  theme(text = element_text(family = "Montserrat", size = 14), 
+        axis.text.x = element_text(hjust = 1, size=14)) +
+  xlab("Violencia")
+
+comparando_patrimonio <- data.frame(
+   Concepto = c("Zona Geográfica", "Robo de motocicleta", "Robo de vehículo de carga pesada", 
+                "Robo de vehículo particular", "Robo a bancos", "Robo a persona", "Robo a cuentahabiente",
+                "Robo a casa habitación", "Robo a negocio", "Robo a interior de vehículo",
+                "Robo de autopartes"),
+   Descriptor = c("La categoría “AMG” incluye los diez municipios que conforman el Área Metropolitana de Guadalajara: Guadalajara, Zapopan, San Pedro Tlaquepaque, Tonalá, Tlajomulco de Zúñiga, El Salto, Ixtlahuacán de los Membrillos, Juanacatlán y Zapotlanejo. La categoría “Interior del Estado” incluye los 115 municipios del estado que no conforman el AMG.","Consiste en apoderarse con ánimo de dominio y sin consentimiento de quien legalmente pueda otorgarlo de una o varias motocicletas que se encontrasen estacionadas, circulando en la vía pública o en el lugar destinado para su guarda o reparación.Para tal efecto, se consideran también motocicletas las cuatrimotos y Razer","Consiste en apoderarse con ánimo de dominio y sin consentimiento de quien legalmente pueda otorgarlo de mercancía trasladada por algún transporte de carga, remolques y semirremolques.","Consiste en apoderarse con ánimo de dominio y sin consentimiento de quien legalmente pueda otorgarlo de uno o varios vehículos que se encontrasen estacionados, circulando en la vía pública o del lugar destinado para su guarda o reparación. Para tal efecto, se consideran vehículos los automotores, remolques y semirremolques terrestres, excepto los ferrocarriles, transportes militares y aquellos que por su naturaleza sólo pueden ser destinados a usos agrícolas e industriales.","Consiste en apoderarse con ánimo de dominio y sin consentimiento de quien legalmente pueda otorgarlo de dinero, valores, documentos o instrumentos de débito, crédito o contenedores de obligaciones, liberaciones, endosos o transmisión de derechos de cualquier naturaleza que se encuentren en resguardo de una institución financiera, de banca, de crédito o comercializadora de divisas u otros valores o que tenga funciones recaudatorias; o contra las personas que las custodien o transporten; o aquellas que al momento del robo se encuentren usando un cajero de retiro de efectivo o de pago de servicios.","Consiste en apoderarse con ánimo de dominio y sin consentimiento de quien legalmente pueda otorgarlo de cosa ajena mueble, dinero o valores cuando la persona afectada se encuentre en vía pública, lugar privado (cines, bares, estadios, salones o cualquier otro lugar que restrinja la entrada al público en general) o espacio abierto al público.","Consiste en apoderarse con ánimo de dominio y sin consentimiento de quien legalmente pueda otorgarlo de dinero extraído del cajero automático o sucursal bancaria y le roban el efectivo en el trayecto a otra ubicación o que en la agresión le hagan mención “Dame el dinero que sacaste del banco o cajero”.","Consiste en apoderarse con ánimo de dominio y sin consentimiento de quien legalmente pueda otorgarlo de cosa ajena mueble, dinero o valores, en lugar cerrado o en edificio, vivienda, aposento o cuarto que estén habitados o destinados para la habitación, comprendiendo no sólo los que estén fijos en la tierra, sino también los móviles, independientemente del material del que estén construidos.","Consiste en apoderarse con ánimo de dominio y sin consentimiento de quien legalmente pueda otorgarlo de cosa ajena muebles, dinero o valores en unidades económicas dedicadas a la realización de actividades de compra, operaciones comerciales, venta de mercancías o servicios, entre los cuales destacan: las empresas, establecimientos o locales comerciales o de servicios, personas físicas con actividad empresarial, entre otros. En este punto, no deberá considerarse el robo a instituciones bancarias ya que su registro deberá realizarse en la variable correspondiente.","Consiste en apoderarse con ánimo de dominio y sin consentimiento de quien legalmente pueda otorgarlo de cosa ajena mueble, dinero o valores al interior de un vehículo particular encontrándose o no la persona afectada en el mismo","Consiste en apoderarse con ánimo de dominio y sin consentimiento de quien legalmente pueda otorgarlo de alguna pieza o conjunto de piezas que conforman el armado de un vehículo automotor o de objetos meramente")
+ )
+
+kable_patrimonio <- comparando_patrimonio %>% kable() %>%
+  kable_styling(bootstrap_options = "striped", full_width = F, 
+                position = "float_right", html_font = "Montserrat") %>%
+  column_spec(1, border_right = T, bold=T) %>%
+  column_spec(2) %>% 
+  scroll_box(width = "950px", height = "350px")
+
+# comparando_patrimonio <- data.frame(
+#   Concepto = c("Zona Geográfica", "Robo de motocicleta", "Robo de vehículo de carga pesada", 
+#                "Robo de vehículo particular", "Robo a bancos", "Robo a persona", "Robo a cuentahabiente",
+#                "Robo a casa habitación", "Robo a negocio", "Robo a interior de vehículo",
+#                "Robo de autopartes"),
+#   Descriptor = c("La categoría “AMG” incluye los diez municipios que conforman el Área Metropolitana de Guadalajara: Guadalajara, Zapopan, San Pedro Tlaquepaque, Tonalá, Tlajomulco de Zúñiga, El Salto, Ixtlahuacán de los Membrillos, Juanacatlán y Zapotlanejo. La categoría “Interior del Estado” incluye los 115 municipios del estado que no conforman el AMG.",
+#                  "Consiste en apoderarse con ánimo de dominio y sin consentimiento de quien legalmente pueda otorgarlo de una o varias motocicletas que se encontrasen estacionadas, circulando en la vía pública o en el lugar destinado para su guarda o reparación.Para tal efecto, se consideran también motocicletas las cuatrimotos y Razer",
+#                  "Consiste en apoderarse con ánimo de dominio y sin consentimiento de quien legalmente pueda otorgarlo de mercancía trasladada por algún transporte de carga, remolques y semirremolques.",
+#                  "Consiste en apoderarse con ánimo de dominio y sin consentimiento de quien legalmente pueda otorgarlo de uno o varios vehículos que se encontrasen estacionados, circulando en la vía pública o del lugar destinado para su guarda o reparación. Para tal efecto, se consideran vehículos los automotores, remolques y semirremolques terrestres, excepto los ferrocarriles, transportes militares y aquellos que por su naturaleza sólo pueden ser destinados a usos agrícolas e industriales.",
+#                  "Consiste en apoderarse con ánimo de dominio y sin consentimiento de quien legalmente pueda otorgarlo de dinero, valores, documentos o instrumentos de débito, crédito o contenedores de obligaciones, liberaciones, endosos o transmisión de derechos de cualquier naturaleza que se encuentren en resguardo de una institución financiera, de banca, de crédito o comercializadora de divisas u otros valores o que tenga funciones recaudatorias; o contra las personas que las custodien o transporten; o aquellas que al momento del robo se encuentren usando un cajero de retiro de efectivo o de pago de servicios.",
+#                  "Consiste en apoderarse con ánimo de dominio y sin consentimiento de quien legalmente pueda otorgarlo de cosa ajena mueble, dinero o valores cuando la persona afectada se encuentre en vía pública, lugar privado (cines, bares, estadios, salones o cualquier otro lugar que restrinja la entrada al público en general) o espacio abierto al público.",
+#                  "Consiste en apoderarse con ánimo de dominio y sin consentimiento de quien legalmente pueda otorgarlo de dinero extraído del cajero automático o sucursal bancaria y le roban el efectivo en el trayecto a otra ubicación o que en la agresión le hagan mención “Dame el dinero que sacaste del banco o cajero”.",
+#                  "Consiste en apoderarse con ánimo de dominio y sin consentimiento de quien legalmente pueda otorgarlo de cosa ajena mueble, dinero o valores, en lugar cerrado o en edificio, vivienda, aposento o cuarto que estén habitados o destinados para la habitación, comprendiendo no sólo los que estén fijos en la tierra, sino también los móviles, independientemente del material del que estén construidos.",
+#                  "Consiste en apoderarse con ánimo de dominio y sin consentimiento de quien legalmente pueda otorgarlo de cosa ajena muebles, dinero o valores en unidades económicas dedicadas a la realización de actividades de compra, operaciones comerciales, venta de mercancías o servicios, entre los cuales destacan: las empresas, establecimientos o locales comerciales o de servicios, personas físicas con actividad empresarial, entre otros. En este punto, no deberá considerarse el robo a instituciones bancarias ya que su registro deberá realizarse en la variable correspondiente.",
+#                  "Consiste en apoderarse con ánimo de dominio y sin consentimiento de quien legalmente pueda otorgarlo de cosa ajena mueble, dinero o valores al interior de un vehículo particular encontrándose o no la persona afectada en el mismo",
+#                  "Consiste en apoderarse con ánimo de dominio y sin consentimiento de quien legalmente pueda otorgarlo de alguna pieza o conjunto de piezas que conforman el armado de un vehículo automotor o de objetos meramente")
+# )
+# 
+# # Mejorar la tabla
+# kable_patrimonio <- comparando_patrimonio %>%
+#   kable("html", caption = "Tabla Comparación de Conceptos de Robo") %>%  # Agregado título a la tabla
+#   kable_styling(
+#     bootstrap_options = c("striped", "hover", "condensed"), # Mejorar la apariencia con opciones adicionales
+#     full_width = FALSE,
+#     position = "center",  # Cambié a center para que la tabla esté centrada
+#     html_font = "Montserrat"
+#   ) %>%
+#   column_spec(1, border_right = TRUE, bold = TRUE, color = "white", background = "#4CAF50") %>%  # Colorear y poner en negrita la primera columna
+#   column_spec(2, width = "30em") %>%  # Ajusté el ancho de la segunda columna
+#   scroll_box(width = "950px", height = "350px")  # Caja de desplazamiento ajustada
+
+```
+
+<p> </p>
+
+![](seccion_patrimonial.png) <!-- <center> --> <!-- ## `r colorize("**Delitos patrimoniales**", "#9D1406")` --> <!-- <center> -->
+
+<p> </p>
+
+<p> </p>
+
+::: {style="text-align: justify; font-family:Montserrat;"}
+Los delitos patrimoniales son los que se cometen en contra de la propiedad de las personas, son los que más afectan a la población general, tanto en incidencia como en impacto.
+:::
+
+<p> </p>
+
+```{r, echo=FALSE, fig.width=8, fig.height=6}
+kable_patrimonio
+```
+
+**Fuente: Carpetas de investigación de la Fiscalía del Estado.**
+
+<p> </p>
+
+<p> </p>
+
+<center>
+
+<h3 style="font-weight: bold; color:black;">
+
+Comportamiento de delitos patrimoniales
+
+</h3>
+
+</center>
+
+<p> </p>
+
+```{r, echo=FALSE, fig.width=8, fig.height=6}
+patrimonio_delito
+```
+
+<p> </p>
+
+<p> </p>
+
+<center>
+
+<h3 style="font-weight: bold; color:black;">
+
+Comparativa de delitos patrimoniales por zona geográfica
+
+</h3>
+
+</center>
+
+<p> </p>
+
+```{r, echo=FALSE, fig.width=8, fig.height=7}
+patrimonio_zona
+```
+
+<p> </p>
+
+<p> </p>
+
+<center>
+
+<h3 style="font-weight: bold; color:black;">
+
+Comparativa de delitos patrimoniales por tipo de violencia
+
+</h3>
+
+</center>
+
+<p> </p>
+
+```{r, echo=FALSE, fig.width=8, fig.height=3}
+patrimonio_violencia
+```
+
+<p> </p>
+
+<p> </p>
+
+```{r, include=FALSE}
+#en la sección contra la vida, se obtienen tasas, utilizaremos las proyecciones de población de conapo
+#metemosla base de datos de población
+comportamiento_vida <- data %>% 
+  filter(fecha>=today & bien_afectado=="La vida y la integridad corporal") %>%
+  group_by(delito, Zona) %>% summarise(Total=sum(victimas))
+vida_delito <- comportamiento_vida %>% group_by(delito) %>% 
+  summarise(Total=sum(Total)) %>%
+  ggplot() + geom_bar(aes(delito, Total), stat = "identity", 
+                      colour="#C1CED9", fill="#C1CED9") +
+  geom_text(aes(delito, Total*1.05,label=Total), size=5) +
+  theme_minimal() + 
+  theme(text = element_text(family = "Montserrat", size = 14), 
+        axis.text.x = element_text(hjust = 1, size = 14)) +
+  xlab("Delito")
+pob <- read.csv("/Users/gobierno.seguridad/Documents/Seguridad/plataforma_seguridad_completa/reporte_mensual/base_municipios_final_datos_01.csv",
+                encoding = "latin1")
+poblacion <- pob %>% filter(CLAVE_ENT==14 & AÑO==año)
+poblacion$CLAVE <- as.numeric(substr(poblacion$CLAVE, start = 3, stop = 5))
+poblacion <- poblacion %>% group_by(MUN, CLAVE) %>%
+  summarise(POB=sum(POB))
+poblacion <- poblacion %>%
+  mutate(Zona=case_when(
+    CLAVE==39 | CLAVE==120 | CLAVE==124 | CLAVE==97 |
+      CLAVE==98 | CLAVE==101 | CLAVE==2 | CLAVE==44 |
+      CLAVE==70 | CLAVE==51 ~ "AMG",
+    TRUE ~ "Interior"
+  ))
+poblacion <- poblacion %>% group_by(Zona) %>%
+  summarise(POB=sum(POB))
+
+vida_zona <- comportamiento_vida %>% group_by(delito, Zona) %>% 
+  summarise(Total=sum(Total)) %>% left_join(poblacion, by="Zona") %>%
+  mutate(Tasa=round(Total/POB*100000,2)) %>%
+  ggplot() + geom_bar(aes(delito, Tasa, fill=Zona), 
+                      stat = "identity") +
+  scale_fill_manual(values = c("#C1CED9", "#58A690")) +
+  geom_text_repel(aes(delito, Tasa*1.05,label=Tasa, group=Zona), colour="black", size=5) +
+  theme_minimal() + 
+  theme(text = element_text(family = "Montserrat", size = 14), 
+        axis.text.x = element_text(hjust = 1, size = 14)) +
+  xlab("Delito")
+
+
+comparación_vida <- data.frame(
+  Concepto=c("Homicidio doloso", "Feminicidio", "Lesiones dolosas"),
+  Descripción=c("Consiste en privar de la vida con intención a otra persona.", "Consiste en privar de la vida a una mujer por razones de género. Se entiende que existen razones de género cuando en la privación de la vida se presente alguna de las siguientes circunstancias:\n
+
+I- Exista o haya existido entre el agresor y la víctima una relación de parentesco por consanguinidad o afinidad, de matrimonio, concubinato, noviazgo o cualquier otra relación de hecho o amistad.\n
+II-Exista o haya existido entre el agresor y la víctima una relación sentimental, laboral, escolar o cualquier otra que implique confianza, subordinación o superioridad.\n
+III-La víctima presente signos de violencia sexual de cualquier tipo;\n
+IV- A la víctima se le hayan infligido lesiones infamantes, degradantes o mutilaciones previamente a la privación de la vida; o al cadáver se le hayan realizado marcas infamantes, degradantes o mutilaciones.\n
+V- Hayan existido amenazas, acoso o lesiones del agresor en contra de la víctima:\n
+VI- El cuerpo de la víctima sea expuesto o arrojado en un lugar público;\n
+VII- La víctima haya sido incomunicada.\n 
+VIII- Cualquier otra circunstancia establecida en la normativa correspondiente que implique privar de la vida a una mujer por razones de género.", "Consiste en causar una alteración con intención a la salud de una persona.")
+)
+
+kable_vida <- comparación_vida %>% kable() %>%
+  kable_styling(bootstrap_options = "striped", full_width = T,
+                position = "float_right", html_font = "Montserrat") %>%
+  column_spec(1, border_right = T, bold=T) %>%
+  column_spec(2) %>% 
+  scroll_box(width = "950px", height = "350px")
+
+
+```
+
+![](seccion_vida.png) <!-- <center> --> <!-- ## `r colorize("**Delitos contra la vida**", "#9D1406")` --> <!-- <center> -->
+
+<p> </p>
+
+<div style="text-align: justify; font-family:Montserrat;">
+
+Estos delitos son los que se cometen contra la vida de las personas. Son los que más impactan en los indicadores de violencia del estado. **Nota:** debido al trabajo de procesamiento en fosas clandestinas, se suman como víctimas de homicidio doloso a las personas localizadas en fosas durante el periodo comprendido entre enero de 2018 a `r mes` de `r año`.
+
+<p> </p>
+
+<p> </p>
+
+<p> </p>
+
+```{r, echo=FALSE}
+kable_vida
+```
+
+**Fuente: Carpetas de investigación de la Fiscalía del Estado.**
+
+<p> </p>
+
+<p> </p>
+
+<center>
+
+<h3 style="font-weight: bold; color:black;">
+
+Comportamiento de delitos contra la vida
+
+</h3>
+
+<center>
+
+```{r, echo=FALSE, fig.width=8, fig.height=6}
+vida_delito
+```
+
+<p> </p>
+
+<p> </p>
+
+<center>
+
+<h3 style="font-weight: bold; color:black;">
+
+Comparativa de delitos contra la vida en tasas por zona geográfica
+
+</h3>
+
+<center>
+
+<p> </p>
+
+```{r, echo=FALSE, fig.width=8, fig.height=6}
+vida_zona
+```
+
+<p> </p>
+
+<div style="text-align: justify; font-family:Montserrat;">
+
+La tasa se obtiene al dividir el total de delitos en el período determinado entre la población total, y el resultado de esta operación se multiplica por 100,000. La población se toma de las proyecciones de población municipales (CONAPO).
+
+<div/>
+
+<p> </p>
+
+<p> </p>
+
+<p style="text-align: justify; font-family:Montserrat;">A continuación, se presenta el número de sitios registrados y el total preliminar de víctimas localizadas en el mes presente.</p>
+
+<center><h3 style="font-weight: bold; color:black;">Sitios de inhumación clandestina registrados en Jalisco, al corte del `r fecha_corte_inhumacion`</h3></center>
+
+```{r tabla-inhumacion, echo=FALSE}
+knitr::kable(tabla_inhumacion, format="html", escape=TRUE) %>%
+  kableExtra::kable_styling(bootstrap_options="striped", full_width=FALSE,
+                            position="center", html_font="Montserrat") %>%
+  kableExtra::scroll_box(width="950px", height="450px")
+```
+
+<p style="text-align: justify; font-family:Montserrat;">Nota: Desde el mes de septiembre de 2026, se modificó la metodología. Los datos se extraen de la base consolidada de <a href="https://fiscaliaenpersonasdesaparecidas.jalisco.gob.mx/registro-estatal-de-fosas-clandestinas/">Sitios de inhumación clandestina en Jalisco</a> que publica la Vicefiscalía en Personas Desaparecidas, y la agrupación por mes se realiza según la fecha de inicio de procesamiento del sitio.</p>
+
+<p style="text-align: justify; font-family:Montserrat;">Fuente: Vicefiscalía en Personas Desaparecidas. Sitios de inhumación clandestina en Jalisco. Información disponible en: <a href="https://fiscaliaenpersonasdesaparecidas.jalisco.gob.mx/registro-estatal-de-fosas-clandestinas/">https://fiscaliaenpersonasdesaparecidas.jalisco.gob.mx/registro-estatal-de-fosas-clandestinas/</a></p>
+
+<p> </p>
+
+```{r, include=FALSE}
+#sección donde haremos el leaflet del mapa conlos municipios
+municipios <- data %>% filter(fecha>=today) %>% group_by(municipio, clave_mun) %>%
+  summarise(Total=n())
+pob_mun <- pob %>% filter(CLAVE_ENT==14 & AÑO==año) %>% 
+  mutate(CLAVE=as.numeric(substr(CLAVE, start = 3, stop = 5))) %>%
+  group_by(MUN, CLAVE) %>% summarise(POB=sum(POB)) %>%
+  rename(clave_mun=CLAVE)
+municipios <- left_join(pob_mun, municipios, by="clave_mun")
+municipios$Total <- ifelse(is.na(municipios$Total), 0, municipios$Total)
+municipios$Tasa <- round(municipios$Total/municipios$POB*100000,2)
+
+library(sp)
+library(sf)
+library(leaflet)
+municipios_shp <- st_read("/Users/gobierno.seguridad/Documents/Seguridad/plataforma_seguridad_completa/reporte_mensual/Municipios_Jalisco_125/municipios_4326.shp")
+municipios_shp$clave_mun <- as.numeric(municipios_shp$CLAVE)
+
+municipios_shp <- left_join(municipios_shp, municipios, by="clave_mun")
+municipios_shp <- municipios_shp %>%
+  mutate(label=paste(sep="<br/>", paste0("Municipio: ", MUN),
+                     paste0("Tasa: ", Tasa), 
+                     paste0("Total: ", Total)))
+
+pal <- colorNumeric("viridis", domain = municipios_shp$Tasa)
+mapa <- municipios_shp %>% leaflet() %>%
+  addTiles() %>%
+  addPolygons(popup = ~label,
+              fillColor = ~pal(Tasa),
+              color = "#444444",
+              fillOpacity = .85,
+              weight = 0) %>% 
+  addLegend("topright", pal = pal, values = ~Tasa,
+    title = "Tasa delictiva", labFormat = labelFormat(),
+    opacity = .50
+  ) 
+
+
+
+
+
+```
+
+<center>
+
+<h2 style="font-weight: bold; color:#9D1406;">
+
+Mapa de tasas delictivas por delito
+
+</h2>
+
+<center>
+
+<p> </p>
+
+```{r, echo=FALSE, fig.width=9.2, fig.height=12}
+mapa
+```
+
+<p> </p>
+
+<div style="text-align: justify; font-family:Montserrat;">
+
+La tasa se obtiene al dividir el total de delitos en el período determinado entre la población total, y el resultado de esta operación se multiplica por 100,000. La población se toma de las proyecciones de población municipales (CONAPO).
+
+<div/>
+
+<p> </p>
+
+<p> </p>
+
+![](acerca_de.png)
+
+<p> </p>
+
+<div style="text-align: justify; font-family:Montserrat;">
+
+Esta es una plataforma de divulgación de información sobre seguridad conformada por la cooperación entre el Gobierno de Jalisco, academia y actores de la sociedad civil; surge de la necesidad de poner a disposición de la comunidad datos abiertos, comprensibles, confiables y oportunos sobre las cifras de incidencia delictiva en el Estado, y con ello contribuir en los procesos de política pública y toma de decisiones en materia de seguridad humana.
+
+<p> </p>
+
+<p> </p>
+
+**Objetivo general:**
+
+<p> </p>
+
+Recabar, procesar e integrar cifras sobre incidencia delictiva, proporcionada por autoridades estatales, con el fin de difundir información a través de un espacio digital de fácil consulta y acceso para la sociedad, así como emitir recomendaciones de políticas públicas dirigidas a mejorar las condiciones de seguridad del estado de Jalisco.
+
+<p> </p>
+
+<p> </p>
+
+**Objetivos específicos:**
+
+<p> </p>
+
+-   Instaurar una mesa de trabajo permanente con participación de los sectores académico, sociedad civil y gobierno para el diseño y ejecución de la plataforma sobre seguridad
+
+-   Establecer un espacio de comunicación, consulta y rendición de cuentas entre el gobierno y la ciudadanía sobre el tema de seguridad. \*Facilitar la comprensión del fenómeno delictivo en nuestra entidad proponiendo contenidos interactivos y de fácil consulta para todo tipo de público.
+
+-   Promover la generación de conocimiento, la crítica y el diálogo para coadyuvar en la propuesta de políticas públicas y los procesos de toma decisión en el tema de seguridad humana.
+
+-   Vincular los trabajos de la plataforma con instancias públicas relevantes en el tema de seguridad humana.
+
+-   Garantizar el acceso a datos abiertos que permitan su reutilización.
+
+-   Presentar de forma desagregada los datos sobre incidencia delictiva y de la manera más extensa posible que permita a las personas acceder a más información.
+
+    <p> </p>
+
+    **Fuentes actuales:** Fiscalía Estatal de Jalisco.
+
+    <p> </p>
+
+    **Medio de verificación:** Carpetas de investigación.
+
+    <p> </p>
+
+    **Periodicidad de actualización:** Mensual.
+
+    <p> </p>
+
+    <!-- **Fecha de actualización:** el día 10 de cada mes o el siguiente día hábil a las 12:00 horas. -->
+
+    <p> </p>
+
+    </div>

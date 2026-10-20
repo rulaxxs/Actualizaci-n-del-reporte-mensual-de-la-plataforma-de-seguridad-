@@ -1,0 +1,21 @@
+# Salidas y respaldos locales
+reporte_mensual_generado_*.html
+reporte_generado_*/
+vista_previa_sin_bd_*.html
+reporte_mensual_con_tabla_antes_de_*.html
+*.xlsx
+corregir_febrero_2026.mjs
+quitar_lineas_punteadas.mjs
+
+# Credenciales y entorno local
+.env
+.env.*
+!.env.example
+.venv/
+node_modules/
+__pycache__/
+*.pyc
+
+# Archivos temporales
+*.log
+tmp/
