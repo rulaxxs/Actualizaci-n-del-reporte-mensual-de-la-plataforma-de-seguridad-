@@ -1,6 +1,6 @@
 # Reporte mensual: tabla y descarga de sitios de inhumación clandestina
 
-Este repositorio local contiene el reporte HTML y un generador para actualizar la tabla mensual de inhumación con datos de PostgreSQL. También puede preparar, en un solo paso, el HTML y el Excel descargable con las dos hojas de inhumación. Todavía no es una publicación automática.
+Este repositorio local contiene el reporte HTML y un generador para actualizar la tabla mensual de inhumación con datos de PostgreSQL. También puede preparar, en un solo paso, el HTML y el Excel de incidencia con una hoja adicional de inhumación. Todavía no es una publicación automática. Para repetir el trabajo mes a mes, consulta la [guía paso a paso](GUIA_PASO_A_PASO.md).
 
 ## Estado actual
 
@@ -196,4 +196,4 @@ Si ya existe un paquete con ese corte, el programa se detiene. `--reemplazar` pe
 
 ## Repositorio GitLab
 
-Este repositorio es **separado** de `ETL-SIEEJ`. Su remoto `origin` apunta al proyecto GitLab `plataforma-de-seguridad_generacion-de-tabla-de-inhumaciones`. El `.gitignore` evita añadir salidas generadas, respaldos, contraseñas y entornos locales. Antes de cada commit, revisar `git status` y comprobar que no aparezcan datos sensibles. Los reportes HTML y Excel generados para cada mes se entregan como archivos separados: no se incluyen en Git.
+Este repositorio es **separado** de `ETL-SIEEJ`. En esta computadora, `origin` apunta al GitLab institucional `plataforma-de-seguridad_generacion-de-tabla-de-inhumaciones` y `github` al repositorio personal `Actualizaci-n-del-reporte-mensual-de-la-plataforma-de-seguridad-`. El `.gitignore` evita añadir salidas generadas, respaldos, contraseñas y entornos locales. Antes de cada commit, revisar `git status` y comprobar que no aparezcan datos sensibles. Los reportes HTML y Excel generados para cada mes se entregan como archivos separados: no se incluyen en Git.
