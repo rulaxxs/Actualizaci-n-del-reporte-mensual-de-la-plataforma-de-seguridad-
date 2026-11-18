@@ -1,5 +1,7 @@
 # Salidas y respaldos locales
 reporte_mensual_generado_*.html
+reporte_mensual_con_graficas_nuevas.html
+reporte_mensual_con_graficas_*.html
 reporte_generado_*/
 vista_previa_sin_bd_*.html
 reporte_mensual_con_tabla_antes_de_*.html

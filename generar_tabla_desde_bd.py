@@ -175,13 +175,17 @@ def generar_html(html_original: str, corte: date, filas: list[tuple[date, int, i
 def main() -> None:
     opciones = argparse.ArgumentParser(description=__doc__)
     opciones.add_argument("--reemplazar", action="store_true", help="Permitir sustituir un archivo ya generado")
+    opciones.add_argument("--plantilla", type=Path, default=PLANTILLA,
+                          help="HTML base del reporte; por defecto, reporte_mensual_con_tabla.html")
     argumentos = opciones.parse_args()
+    if not argumentos.plantilla.is_file():
+        opciones.error(f"No existe la plantilla: {argumentos.plantilla}")
 
     corte, filas = leer_datos()
     salida = CARPETA / f"reporte_mensual_generado_{corte:%Y_%m}.html"
     if salida.exists() and not argumentos.reemplazar:
         raise SystemExit(f"Ya existe {salida}. Usa --reemplazar solo si deseas sobrescribirlo.")
-    original = PLANTILLA.read_text(encoding="utf-8")
+    original = argumentos.plantilla.read_text(encoding="utf-8")
     generado = generar_html(original, corte, filas)
     salida.write_text(generado, encoding="utf-8")
     print(f"Generado: {salida}")

@@ -1,6 +1,6 @@
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) != 5L) {
-  stop("Uso: Rscript renderizar_reporte_integrado.R plantilla.Rmd tabla.csv corte-AAAA-MM-DD excel.xlsx salida.html")
+if (length(args) != 4L) {
+  stop("Uso: Rscript renderizar_reporte_integrado.R plantilla.Rmd tabla.csv corte-AAAA-MM-DD salida.html")
 }
 if (!requireNamespace("rmarkdown", quietly = TRUE)) {
   stop("Falta instalar el paquete R 'rmarkdown'.")
@@ -9,19 +9,17 @@ if (!requireNamespace("rmarkdown", quietly = TRUE)) {
 plantilla <- normalizePath(args[[1]], mustWork = TRUE)
 tabla <- normalizePath(args[[2]], mustWork = TRUE)
 corte <- args[[3]]
-excel <- basename(args[[4]])
-salida <- normalizePath(dirname(args[[5]]), mustWork = TRUE)
-if (is.na(as.Date(corte)) || !grepl("^[A-Za-z0-9._-]+\\.xlsx$", excel)) {
-  stop("Corte o nombre de Excel inválido.")
+salida <- normalizePath(dirname(args[[4]]), mustWork = TRUE)
+if (is.na(as.Date(corte))) {
+  stop("Corte inválido.")
 }
 
 rmarkdown::render(
   input = plantilla,
-  output_file = basename(args[[5]]),
+  output_file = basename(args[[4]]),
   output_dir = salida,
   params = list(tabla_inhumacion_csv = tabla,
-                corte_inhumacion = corte,
-                excel_descarga = excel),
+                corte_inhumacion = corte),
   envir = new.env(parent = globalenv()),
   quiet = FALSE
 )

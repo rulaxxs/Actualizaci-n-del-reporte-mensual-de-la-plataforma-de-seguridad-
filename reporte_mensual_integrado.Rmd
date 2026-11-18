@@ -6,7 +6,6 @@
  params:
    tabla_inhumacion_csv: ""
    corte_inhumacion: ""
-   excel_descarga: ""
 ---
 
 ```{css, echo=F}
@@ -61,7 +60,118 @@
 # 
 # .button1 {background-color: #4CAF50;} /* Green */
 # .button2 {background-color: #008CBA;} /* Blue */
+
+body { font-size: 14px; }
+body p, body li, body table, body th, body td, body button {
+  font-size: 14px !important;
+}
+body h1 p, body h2 p, body h3 p, body h4 p, body h5 p, body h6 p {
+  font-size: inherit !important;
+}
+body, body *:not(.glyphicon):not([class^="fa-"]):not([class*=" fa-"]):not([class*="icon-"]) {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+}
+.inhumacion-franja {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  min-height: 62px;
+  padding: 7px 20px;
+  margin: 8px 0 28px;
+  box-sizing: border-box;
+  background: #00162e;
+  color: #fff;
+  border-radius: 0 999px 999px 0;
+  text-align: left;
+}
+.inhumacion-franja__icono {
+  width: 42px;
+  height: 50px;
+  flex: none;
+  color: #23bfd8;
+}
+.inhumacion-franja__texto {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.plataforma-franja {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  min-height: 90px;
+  padding: 8px 24px;
+  box-sizing: border-box;
+  background: #00162e;
+  color: #fff;
+  border-radius: 0 999px 999px 0;
+}
+.plataforma-franja__icono {
+  width: 68px;
+  height: 62px;
+  flex: none;
+}
+.plataforma-franja__texto {
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.patrimoniales-franja {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-height: 98px;
+  padding: 10px 34px;
+  box-sizing: border-box;
+  background: #00162e;
+  color: #fff;
+  border-radius: 0 999px 999px 0;
+}
+.patrimoniales-franja__icono {
+  width: 92px;
+  height: 74px;
+  flex: none;
+  color: #23bfd8;
+}
+.patrimoniales-franja__texto {
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+@media (max-width: 520px) {
+  .inhumacion-franja { gap: 12px; padding: 8px 14px; }
+  .inhumacion-franja__texto { font-size: 16px; }
+  .plataforma-franja { gap: 12px; min-height: 76px; padding: 8px 16px; }
+  .plataforma-franja__icono { width: 52px; height: 50px; }
+  .plataforma-franja__texto { font-size: 16px; }
+  .patrimoniales-franja { gap: 14px; min-height: 82px; padding: 8px 18px; }
+  .patrimoniales-franja__icono { width: 68px; height: 58px; }
+  .patrimoniales-franja__texto { font-size: 17px; }
+}
 ```
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('p').forEach(function (paragraph) {
+    const text = paragraph.textContent.trim();
+    if (/^(Nota|Fuente):/i.test(text) ||
+        /Nota: debido al trabajo de procesamiento/i.test(text)) {
+      paragraph.style.textAlign = 'left';
+      paragraph.style.fontFamily = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+      paragraph.style.fontSize = '14px';
+      paragraph.style.fontWeight = 'normal';
+      paragraph.querySelectorAll('strong, b').forEach(function (bold) {
+        bold.replaceWith(...bold.childNodes);
+      });
+    }
+  });
+});
+</script>
 
 ```{r, include=FALSE, message=F, warning=FALSE}
 library(readr)
@@ -85,10 +195,6 @@ if (!nzchar(params$tabla_inhumacion_csv) || !file.exists(params$tabla_inhumacion
 }
 corte_inhumacion <- as.Date(params$corte_inhumacion)
 if (is.na(corte_inhumacion)) stop("Falta un corte_inhumacion válido (AAAA-MM-DD).")
-excel_descarga <- basename(params$excel_descarga)
-if (!grepl("^[A-Za-z0-9._-]+\\.xlsx$", excel_descarga)) {
-  stop("Falta el nombre del Excel descargable del mes.")
-}
 meses_inhumacion <- c("enero", "febrero", "marzo", "abril", "mayo", "junio",
                        "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre")
 fecha_corte_inhumacion <- paste(day(corte_inhumacion), "de",
@@ -125,7 +231,7 @@ data <- data %>%
 
 
 #nombramos al mes y año
-mes <- str_to_sentence(month(max(data$fecha), abbr = F, label = T)) 
+mes <- meses_inhumacion[month(max(data$fecha))]
 año <- year(max(data$fecha))
 #hacemos el data frame de la relación de bienes jurídicos con los delitos
 tesi <- data %>% group_by(bien_afectado, delito) %>% 
@@ -157,7 +263,7 @@ incidencia <- incidencia_total %>%
   # geom_label(data=incidencia_prom, aes(y=Media, 
   #                                       label=round(Media,0), group=Año), x=2017,
   #           fontface='bold', size=3.5) + 
-    xlab("Meses") +
+    labs(x = NULL, y = NULL) +
       scale_color_manual(labels= c("Promedio 2017", "Promedio 2018", "Promedio 2019", 
                                    "Promedio 2020","Promedio 2021","Promedio 2022",
                                    "AMG", "Interior", "Total Estado"),
@@ -204,7 +310,7 @@ homicidio_evento <- homicidio_total %>%
   # geom_label(data=homicidio_prom, aes(y=Media, 
   #                                       label=round(Media,0), group=year), x=2017,
   #           fontface='bold', size=3.5) + 
-    xlab("Meses") +
+    labs(x = NULL, y = NULL) +
   scale_color_manual(labels= c("Promedio 2017", "Promedio 2018", "Promedio 2019", 
                                    "Promedio 2020","Promedio 2021","Promedio 2022",
                                    "AMG", "Interior", "Total Estado"),
@@ -247,7 +353,7 @@ homicidio_victimas <- homicidio_vic_total %>% ggplot() + geom_point(aes(x=mes_an
   geom_label(data=homicidio_vic_prom, aes(y=Media, 
                                         label=round(Media,0), group=year), x=2017,
             fontface='bold', size=3.5) + 
-    xlab("Meses") +
+    labs(x = NULL, y = NULL) +
       scale_color_manual(labels= c("Promedio 2017", "Promedio 2018", "Promedio 2019", 
                                    "Promedio 2020","Promedio 2021","Promedio 2022",
                                    "AMG", "Interior", "Total Estado"),
@@ -299,10 +405,15 @@ meses_total[is.na(meses_total)] <- 0
 
 
 
-browny <- str_to_sentence(paste0(month(max(data$fecha), label = T, abbr = F), " ", 
-                            year(max(data$fecha)))) 
+browny <- paste("Cifras de", mes, "de", año)
 oli_triste <- tesi %>% right_join(meses_total, by="Delito") %>% ungroup() %>% 
-  arrange(bien_afectado) %>% select(-bien_afectado)
+  arrange(bien_afectado) %>% select(-bien_afectado) %>%
+  mutate(Delito = dplyr::recode(Delito,
+    "Robo a int de vehiculos" = "Robo a interior de vehículos",
+    "Robo a vehiculos particulares" = "Robo a vehículos particulares",
+    "Robo a vehículos particulares" = "Robo a vehículos particulares",
+    "Robo casa habitacion" = "Robo casa habitación",
+    "Violacion" = "Violación"))
 
 imgTotal <- case_when(oli_triste$`Total promedio`> oli_triste$Total ~ "verde.jpg",
                       oli_triste$`Total promedio`< oli_triste$Total ~ "rojo.jpg", 
@@ -331,22 +442,24 @@ comparativa_mes <- oli_triste %>%
  #              cell_spec(Interior, "html", background = "#75DC64", color="black"))
  #   
  # ) %>%
-  kable("html", escape = F) %>% 
-  kable_styling("hover", full_width = T, font_size = 15, html_font = "Montserrat") %>%
-  add_header_above(c("", "Promedio 12 meses previos"=3, 
+  kable("html", escape = F,
+        col.names = c("Delito", "Estatal", "AMG", "Interior",
+                      "Estatal", "AMG", "Interior")) %>%
+  kable_styling("hover", full_width = T, font_size = 14, html_font = "Montserrat") %>%
+  add_header_above(c("", "Promedio mensual (12 meses previos)"=3, 
                      setNames(3, browny))) %>%
   column_spec(1, bold = T, border_right = T) %>%
   column_spec(4, border_right = T) %>% 
   column_spec(5, image = spec_image(imgTotal, 50, 50)) %>% 
   column_spec(6, image = spec_image(imgAMG, 50, 50)) %>% 
   column_spec(7, image = spec_image(imgInterior, 50, 50)) %>%
-  kableExtra::group_rows(group_label = "El patrimonio",
+  kableExtra::group_rows(group_label = "Bien jurídico afectado: El patrimonio",
                          start_row = 1, end_row = 10) %>%
-    kableExtra::group_rows(group_label = "La familia",
+    kableExtra::group_rows(group_label = "Bien jurídico afectado: La familia",
                          start_row = 11, end_row = 11) %>%
-      kableExtra::group_rows(group_label = "La libertad y la seguridad sexual",
+      kableExtra::group_rows(group_label = "Bien jurídico afectado: La libertad y la seguridad sexual",
                          start_row = 12, end_row = 13) %>%
-      kableExtra::group_rows(group_label = "La vida y la integridad corporal",
+      kableExtra::group_rows(group_label = "Bien jurídico afectado: La vida y la integridad corporal",
                          start_row = 14, end_row = 16)
 
   
@@ -378,7 +491,7 @@ comparativa_mes <- oli_triste %>%
 #  ) %>%
 #   #select(Delito, everything()) %>%
 #   kable("html", escape = F) %>%
-#   kable_styling("hover", full_width = T, font_size = 15, html_font = "Montserrat") %>%
+#   kable_styling("hover", full_width = T, font_size = 14, html_font = "Montserrat") %>%
 #   add_header_above(c("", "Promedio 12 meses previos"=3, 
 #                      setNames(3, browny))) %>%
 #   column_spec(1, bold = T, border_right = T) %>%
@@ -416,7 +529,7 @@ gr_hom_eventos <- data_homicidios %>% filter(tipo=="EVENTOS") %>%
   # geom_label(data=homicidio_vic_prom, aes(y=Media, 
   #                                       label=round(Media,0), group=year), x=2017,
   #           fontface='bold', size=3.5) + 
-    xlab("Meses") +
+    labs(x = NULL, y = NULL) +
       scale_color_manual(labels= c("Promedio 2017", "Promedio 2018", "Promedio 2019", 
                                    "Promedio 2020","Promedio 2021",
                                    "AMG", "Interior", "Total Estado"),
@@ -444,7 +557,7 @@ gr_hom_vic <- data_homicidios %>% filter(tipo=="VICTIMAS") %>%
   # geom_label(data=homicidio_vic_prom, aes(y=Media, 
   #                                       label=round(Media,0), group=year), x=2017,
   #           fontface='bold', size=3.5) + 
-    xlab("Meses") +
+    labs(x = NULL, y = NULL) +
       scale_color_manual(labels= c("Promedio 2017", "Promedio 2018", "Promedio 2019", 
                                    "Promedio 2020","Promedio 2021",
                                    "AMG", "Interior", "Total Estado"),
@@ -475,7 +588,7 @@ gr_hom_vic <- data_homicidios %>% filter(tipo=="VICTIMAS") %>%
 
 <h1 style="font-weight: bold; color:black;">
 
-Reporte mensual
+Reporte mensual de carpetas de investigación de 16 tipos de delitos del fuero común en Jalisco
 
 </h1>
 
@@ -487,7 +600,7 @@ Reporte mensual
 
 <p style="text-align: justify;">
 
-Se presenta la información de las carpetas de investigación iniciadas en la Fiscalía Estatal por delitos del fuero común. La información puede actualizarse mes con mes debido a los cambios jurídicos de algunas carpetas de investigación. Corte de información al **`r day(max(data$fecha))`** de **`r mes`** de **`r año`**.
+Se presenta la información de las carpetas de investigación iniciadas en la Fiscalía del Estado de Jalisco de una selección de 16 tipos de delitos del fuero común: abuso sexual, feminicidio, homicidio doloso, lesiones dolosas, robo a bancos, robo a carga pesada, robo a cuentahabientes, robo a interior de vehículo, robo a negocio, robo a persona, robo de vehículos particulares, robo a casa habitación, robo de autopartes, robo de motocicleta, violación y violencia familiar. La información puede actualizarse mes con mes debido a los cambios jurídicos de algunas carpetas de investigación. Corte de información al **`r day(max(data$fecha))`** de **`r mes`** de **`r año`**.
 
 </p>
 
@@ -495,7 +608,10 @@ Se presenta la información de las carpetas de investigación iniciadas en la Fi
 
 <div>
 
-<center><a href="`r excel_descarga`" download><button style="background-color: #303040; color:white; font-text:15px;">Descargar reporte del mes</button> </a></center>
+<div style="display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap;">
+  <a href="https://iieg.jalisco.gob.mx/reportes" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#303040;color:#fff;font-size:14px;padding:8px 12px;text-decoration:none;border-radius:3px;">Descargar reporte del mes</a>
+  <a href="https://iieg.jalisco.gob.mx/datos-abiertos/es/dataset/repositorio-de-datos-de-la-plataforma-de-seguridad-2026" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#303040;color:#fff;font-size:14px;padding:8px 12px;text-decoration:none;border-radius:3px;">Datos abiertos</a>
+</div>
 
 </div>
 
@@ -507,7 +623,7 @@ Se presenta la información de las carpetas de investigación iniciadas en la Fi
 
 <h3 style="font-weight: bold; color:black;">
 
-Incidencia delictiva total
+Carpetas de investigación iniciadas de 16 tipos de delitos del fuero común, corte al `r day(max(data$fecha))` de `r mes` de `r año`
 
 </h3>
 
@@ -525,7 +641,7 @@ incidencia  <- incidencia  +
 
 <div style="text-align: justify; font-family:Montserrat;">
 
-En la gráfica se contemplan los siguientes 16 delitos: Abuso sexual, feminicidio, homicidio doloso, lesiones dolosas, robo a bancos, robo a carga pesada, robo a cuentahabientes, robo a interior de vehículo, robo a negocio, robo a persona, robo de vehículos particulares, robo a casa habitación, robo de autopartes, robo de motocicleta, violación y violencia familiar
+Fuente: Fiscalía del Estado de Jalisco.
 
 <div/>
 
@@ -537,7 +653,7 @@ En la gráfica se contemplan los siguientes 16 delitos: Abuso sexual, feminicidi
 
 <h3 style="font-weight: bold; color:black;">
 
-Homicidios dolosos - eventos
+Carpetas de investigación iniciadas por el delito de homicidio doloso, corte al `r day(max(data$fecha))` de `r mes` de `r año`
 
 </h3>
 
@@ -552,6 +668,10 @@ ggplotly(gr_hom_eventos) %>% layout(font=monse)
 
 ```
 
+Nota: Una carpeta de investigación iniciada puede registrar a una o varias víctimas del mismo delito.
+
+Fuente: Fiscalía del Estado de Jalisco.
+
 <p> </p>
 
 <p> </p>
@@ -560,7 +680,7 @@ ggplotly(gr_hom_eventos) %>% layout(font=monse)
 
 <h3 style="font-weight: bold; color:black;">
 
-Homicidios dolosos - víctimas
+Víctimas de homicidios dolosos, corte al `r day(max(data$fecha))` de `r mes` de `r año`
 
 </h3>
 
@@ -575,6 +695,8 @@ ggplotly(gr_hom_vic) %>% layout(font=monse)
 
 ```
 
+Fuente: Fiscalía del Estado de Jalisco.
+
 <p> </p>
 
 <p> </p>
@@ -583,7 +705,7 @@ ggplotly(gr_hom_vic) %>% layout(font=monse)
 
 <h3 style="font-weight: bold; color:black;">
 
-Promedio mensual de delitos
+Carpetas de investigación de 16 tipos de delitos, promedio mensual de los últimos doce meses y valores del último mes
 
 </h3>
 
@@ -595,7 +717,9 @@ comparativa_mes
 
 <div style="text-align: justify; font-family:Montserrat;">
 
-En la tabla anterior, las celdas en rojo significan un aumento comparado con el promedio (12 meses anteriores) de la misma variable, en verde significa una disminución.
+Nota: En la tabla anterior, las flechas en rojo significan un aumento comparado con el promedio mensual de los 12 meses anteriores de la misma variable; en verde significan una disminución.
+
+Fuente: Fiscalía del Estado de Jalisco.
 
 <div/>
 
@@ -618,27 +742,41 @@ colorize <- function(x, color) {
 }
 
 comportamiento_patrimoniales <- data %>% filter(fecha>=today & bien_afectado=="El patrimonio") %>%
-  group_by(delito, Zona, violencia) %>% summarise(Total=n())
-patrimonio_delito <- comportamiento_patrimoniales %>% group_by(delito) %>% 
-  summarise(Total=sum(Total)) %>%
+  group_by(delito, Zona, violencia) %>% summarise(Total=n(), .groups="drop") %>%
+  mutate(delito=ifelse(grepl("cuentahabient", delito, ignore.case=TRUE),
+                       "Robo a cuentahabientes", as.character(delito)))
+delitos_patrimoniales_sin_registros <- c("Robo a bancos", "Robo a cuentahabientes")
+patrimonio_delito_datos <- comportamiento_patrimoniales %>% group_by(delito) %>%
+  summarise(Total=sum(Total), .groups="drop") %>%
+  tidyr::complete(delito=union(delito, delitos_patrimoniales_sin_registros),
+                  fill=list(Total=0))
+patrimonio_delito <- patrimonio_delito_datos %>%
   ggplot() + geom_bar(aes(delito, Total), stat = "identity", 
                       colour="#C1CED9", fill="#C1CED9") +
-  geom_text(aes(delito, Total*1.05,label=Total), size=5) +
+  geom_text(aes(delito, ifelse(Total==0, 4, Total*1.05),label=Total), size=5) +
   theme_minimal() + theme(text = element_text(family = "Montserrat", size=14),
                           axis.text.x = element_text(angle = 70, hjust = 1, size = 14),
                           ) +
-  xlab("Delito")
+  labs(x = NULL, y = NULL)
 
-patrimonio_zona <- comportamiento_patrimoniales %>% group_by(delito, Zona) %>% 
-  summarise(Total=sum(Total)) %>%
+patrimonio_zona_datos <- comportamiento_patrimoniales %>% group_by(delito, Zona) %>%
+  summarise(Total=sum(Total), .groups="drop") %>%
+  tidyr::complete(delito=union(delito, delitos_patrimoniales_sin_registros),
+                  Zona=c("AMG", "Interior"), fill=list(Total=0))
+patrimonio_zona_ceros <- patrimonio_zona_datos %>% group_by(delito) %>%
+  summarise(Total=sum(Total), .groups="drop") %>% filter(Total==0)
+patrimonio_zona <- patrimonio_zona_datos %>%
   ggplot() + geom_bar(aes(delito, Total, fill=Zona),
                       stat = "identity") +
   scale_fill_manual(values = c("#C1CED9", "#58A690")) +
-  geom_text(aes(delito, Total*1.15,label=Total, group=Zona),colour="black", size=6) +
+  geom_text(data=~dplyr::filter(.x, Total>0),
+            aes(delito, Total*1.15,label=Total, group=Zona),colour="black", size=6) +
+  geom_text(data=patrimonio_zona_ceros, aes(delito, 4, label="0"),
+            inherit.aes=FALSE, colour="black", size=6) +
   theme_minimal() + 
   theme(text = element_text(family = "Montserrat", size=14),
         axis.text.x = element_text(angle = 70, hjust = 1, size = 14)) +
-  xlab("Delito")
+  labs(x = NULL, y = NULL)
 
 patrimonio_violencia <- comportamiento_patrimoniales %>% group_by(violencia) %>% 
   summarise(Total=sum(Total)) %>%
@@ -648,7 +786,7 @@ patrimonio_violencia <- comportamiento_patrimoniales %>% group_by(violencia) %>%
   theme_minimal() + 
   theme(text = element_text(family = "Montserrat", size = 14), 
         axis.text.x = element_text(hjust = 1, size=14)) +
-  xlab("Violencia")
+  labs(x = NULL, y = NULL)
 
 comparando_patrimonio <- data.frame(
    Concepto = c("Zona Geográfica", "Robo de motocicleta", "Robo de vehículo de carga pesada", 
@@ -700,14 +838,24 @@ kable_patrimonio <- comparando_patrimonio %>% kable() %>%
 
 <p> </p>
 
-![](seccion_patrimonial.png) <!-- <center> --> <!-- ## `r colorize("**Delitos patrimoniales**", "#9D1406")` --> <!-- <center> -->
+<div class="patrimoniales-franja" aria-label="Delitos patrimoniales">
+  <svg class="patrimoniales-franja__icono" viewBox="0 0 96 76" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+    <path d="M17 30 24 12c2-5 6-8 12-8h24c6 0 10 3 12 8l7 18"/>
+    <path d="M15 31h66c6 0 10 4 10 10v17c0 6-4 10-10 10H15C9 68 5 64 5 58V41c0-6 4-10 10-10Z"/>
+    <path d="M14 31 7 25m75 6 7-6M21 68v4m54-4v4"/>
+    <circle cx="25" cy="49" r="5"/>
+    <circle cx="71" cy="49" r="5"/>
+    <path d="M38 49h20"/>
+  </svg>
+  <span class="patrimoniales-franja__texto">Delitos patrimoniales</span>
+</div>
 
 <p> </p>
 
 <p> </p>
 
 ::: {style="text-align: justify; font-family:Montserrat;"}
-Los delitos patrimoniales son los que se cometen en contra de la propiedad de las personas, son los que más afectan a la población general, tanto en incidencia como en impacto.
+La sección de delitos patrimoniales presenta una selección de diez categorías de delitos que se cometen en contra de la propiedad de las personas.
 :::
 
 <p> </p>
@@ -716,7 +864,7 @@ Los delitos patrimoniales son los que se cometen en contra de la propiedad de la
 kable_patrimonio
 ```
 
-**Fuente: Carpetas de investigación de la Fiscalía del Estado.**
+Fuente: Fiscalía del Estado de Jalisco.
 
 <p> </p>
 
@@ -726,7 +874,7 @@ kable_patrimonio
 
 <h3 style="font-weight: bold; color:black;">
 
-Comportamiento de delitos patrimoniales
+Carpetas de investigación de delitos patrimoniales seleccionados, `r mes` de `r año`
 
 </h3>
 
@@ -738,6 +886,8 @@ Comportamiento de delitos patrimoniales
 patrimonio_delito
 ```
 
+Fuente: Fiscalía del Estado de Jalisco.
+
 <p> </p>
 
 <p> </p>
@@ -746,7 +896,7 @@ patrimonio_delito
 
 <h3 style="font-weight: bold; color:black;">
 
-Comparativa de delitos patrimoniales por zona geográfica
+Carpetas de investigación de delitos patrimoniales seleccionados por zona geográfica, `r mes` de `r año`
 
 </h3>
 
@@ -758,6 +908,8 @@ Comparativa de delitos patrimoniales por zona geográfica
 patrimonio_zona
 ```
 
+Fuente: Fiscalía del Estado de Jalisco.
+
 <p> </p>
 
 <p> </p>
@@ -766,7 +918,7 @@ patrimonio_zona
 
 <h3 style="font-weight: bold; color:black;">
 
-Comparativa de delitos patrimoniales por tipo de violencia
+Carpetas de investigación de delitos patrimoniales seleccionados, según modalidad: con o sin violencia, `r mes` de `r año`
 
 </h3>
 
@@ -777,6 +929,8 @@ Comparativa de delitos patrimoniales por tipo de violencia
 ```{r, echo=FALSE, fig.width=8, fig.height=3}
 patrimonio_violencia
 ```
+
+Fuente: Fiscalía del Estado de Jalisco.
 
 <p> </p>
 
@@ -796,7 +950,7 @@ vida_delito <- comportamiento_vida %>% group_by(delito) %>%
   theme_minimal() + 
   theme(text = element_text(family = "Montserrat", size = 14), 
         axis.text.x = element_text(hjust = 1, size = 14)) +
-  xlab("Delito")
+  labs(x = NULL, y = NULL)
 pob <- read.csv("/Users/gobierno.seguridad/Documents/Seguridad/plataforma_seguridad_completa/reporte_mensual/base_municipios_final_datos_01.csv",
                 encoding = "latin1")
 poblacion <- pob %>% filter(CLAVE_ENT==14 & AÑO==año)
@@ -823,7 +977,7 @@ vida_zona <- comportamiento_vida %>% group_by(delito, Zona) %>%
   theme_minimal() + 
   theme(text = element_text(family = "Montserrat", size = 14), 
         axis.text.x = element_text(hjust = 1, size = 14)) +
-  xlab("Delito")
+  labs(x = NULL, y = NULL)
 
 
 comparación_vida <- data.frame(
@@ -856,7 +1010,7 @@ kable_vida <- comparación_vida %>% kable() %>%
 
 <div style="text-align: justify; font-family:Montserrat;">
 
-Estos delitos son los que se cometen contra la vida de las personas. Son los que más impactan en los indicadores de violencia del estado. **Nota:** debido al trabajo de procesamiento en fosas clandestinas, se suman como víctimas de homicidio doloso a las personas localizadas en fosas durante el periodo comprendido entre enero de 2018 a `r mes` de `r año`.
+La sección de delitos contra la vida presenta una selección de tres categorías de delitos. Nota: debido al trabajo de procesamiento en sitios de inhumación clandestina, se suman como víctimas de homicidio doloso a las personas localizadas en sitios de inhumación clandestina durante el periodo comprendido entre enero de 2018 a `r mes` de `r año`.
 
 <p> </p>
 
@@ -868,7 +1022,7 @@ Estos delitos son los que se cometen contra la vida de las personas. Son los que
 kable_vida
 ```
 
-**Fuente: Carpetas de investigación de la Fiscalía del Estado.**
+Fuente: Fiscalía del Estado de Jalisco.
 
 <p> </p>
 
@@ -878,7 +1032,7 @@ kable_vida
 
 <h3 style="font-weight: bold; color:black;">
 
-Comportamiento de delitos contra la vida
+Carpetas de investigación por delitos contra la vida seleccionados, `r mes` de `r año`
 
 </h3>
 
@@ -888,6 +1042,8 @@ Comportamiento de delitos contra la vida
 vida_delito
 ```
 
+Fuente: Fiscalía del Estado de Jalisco.
+
 <p> </p>
 
 <p> </p>
@@ -896,7 +1052,7 @@ vida_delito
 
 <h3 style="font-weight: bold; color:black;">
 
-Comparativa de delitos contra la vida en tasas por zona geográfica
+Tasa de carpetas de investigación de delitos contra la vida seleccionados por cada 100,000 habitantes, según zona geográfica, `r mes` de `r año`
 
 </h3>
 
@@ -908,32 +1064,16 @@ Comparativa de delitos contra la vida en tasas por zona geográfica
 vida_zona
 ```
 
-<p> </p>
-
 <div style="text-align: justify; font-family:Montserrat;">
 
-La tasa se obtiene al dividir el total de delitos en el período determinado entre la población total, y el resultado de esta operación se multiplica por 100,000. La población se toma de las proyecciones de población municipales (CONAPO).
+Nota: La tasa se obtiene al dividir el total de delitos en el período determinado entre la población total, y el resultado de esta operación se multiplica por 100,000.
+
+Fuente: Fiscalía del Estado de Jalisco  
+CONAPO. Reconstrucción y proyecciones de la población de los municipios de México 1990-2040.
 
 <div/>
 
 <p> </p>
-
-<p> </p>
-
-<p style="text-align: justify; font-family:Montserrat;">A continuación, se presenta el número de sitios registrados y el total preliminar de víctimas localizadas en el mes presente.</p>
-
-<center><h3 style="font-weight: bold; color:black;">Sitios de inhumación clandestina registrados en Jalisco, al corte del `r fecha_corte_inhumacion`</h3></center>
-
-```{r tabla-inhumacion, echo=FALSE}
-knitr::kable(tabla_inhumacion, format="html", escape=TRUE) %>%
-  kableExtra::kable_styling(bootstrap_options="striped", full_width=FALSE,
-                            position="center", html_font="Montserrat") %>%
-  kableExtra::scroll_box(width="950px", height="450px")
-```
-
-<p style="text-align: justify; font-family:Montserrat;">Nota: Desde el mes de septiembre de 2026, se modificó la metodología. Los datos se extraen de la base consolidada de <a href="https://fiscaliaenpersonasdesaparecidas.jalisco.gob.mx/registro-estatal-de-fosas-clandestinas/">Sitios de inhumación clandestina en Jalisco</a> que publica la Vicefiscalía en Personas Desaparecidas, y la agrupación por mes se realiza según la fecha de inicio de procesamiento del sitio.</p>
-
-<p style="text-align: justify; font-family:Montserrat;">Fuente: Vicefiscalía en Personas Desaparecidas. Sitios de inhumación clandestina en Jalisco. Información disponible en: <a href="https://fiscaliaenpersonasdesaparecidas.jalisco.gob.mx/registro-estatal-de-fosas-clandestinas/">https://fiscaliaenpersonasdesaparecidas.jalisco.gob.mx/registro-estatal-de-fosas-clandestinas/</a></p>
 
 <p> </p>
 
@@ -963,7 +1103,7 @@ municipios_shp <- municipios_shp %>%
 
 pal <- colorNumeric("viridis", domain = municipios_shp$Tasa)
 mapa <- municipios_shp %>% leaflet() %>%
-  addTiles() %>%
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
   addPolygons(popup = ~label,
               fillColor = ~pal(Tasa),
               color = "#444444",
@@ -982,9 +1122,9 @@ mapa <- municipios_shp %>% leaflet() %>%
 
 <center>
 
-<h2 style="font-weight: bold; color:#9D1406;">
+<h2 style="font-weight: bold; color:#000000;">
 
-Mapa de tasas delictivas por delito
+Mapa de tasa de carpetas de investigación de los 16 delitos seleccionados por cada 100,000 habitantes según municipio, `r mes` de `r año`
 
 </h2>
 
@@ -1000,7 +1140,10 @@ mapa
 
 <div style="text-align: justify; font-family:Montserrat;">
 
-La tasa se obtiene al dividir el total de delitos en el período determinado entre la población total, y el resultado de esta operación se multiplica por 100,000. La población se toma de las proyecciones de población municipales (CONAPO).
+Nota: La tasa se obtiene al dividir el total de delitos en el período determinado entre la población total, y el resultado de esta operación se multiplica por 100,000. La población se toma de las proyecciones de población municipales (CONAPO).
+
+Fuente: Fiscalía del Estado de Jalisco  
+CONAPO. Reconstrucción y proyecciones de la población de los municipios de México 1990-2040.
 
 <div/>
 
@@ -1008,13 +1151,48 @@ La tasa se obtiene al dividir el total de delitos en el período determinado ent
 
 <p> </p>
 
-![](acerca_de.png)
+<div class="inhumacion-franja" aria-label="Sitios de inhumación clandestina">
+  <svg class="inhumacion-franja__icono" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+    <circle cx="32" cy="32" r="21"/>
+    <circle cx="32" cy="32" r="11"/>
+    <circle cx="32" cy="32" r="3.5"/>
+    <path d="M32 3v17m0 24v17M3 32h17m24 0h17"/>
+  </svg>
+  <span class="inhumacion-franja__texto">Sitios de inhumación clandestina</span>
+</div>
+
+<p style="text-align: justify; font-family:Montserrat;">A continuación, se presenta el número de sitios de inhumación clandestina registrados en Jalisco y el total preliminar de víctimas localizadas en la fecha de corte de la información.</p>
+
+<center><h3 style="font-weight: bold; color:black;">Sitios de inhumación clandestina registrados en Jalisco, al corte del `r fecha_corte_inhumacion`</h3></center>
+
+```{r tabla-inhumacion, echo=FALSE}
+knitr::kable(tabla_inhumacion, format="html", escape=TRUE) %>%
+  kableExtra::kable_styling(bootstrap_options="striped", full_width=FALSE,
+                            position="center", html_font="Montserrat") %>%
+  kableExtra::scroll_box(width="950px", height="450px")
+```
+
+<p style="text-align:left; font-family:Montserrat;">Nota: Desde el mes de septiembre de 2026, se modificó la metodología. Los datos se extraen de la base consolidada de <a href="https://fiscaliaenpersonasdesaparecidas.jalisco.gob.mx/registro-estatal-de-fosas-clandestinas/">Sitios de inhumación clandestina en Jalisco</a> que publica la Vicefiscalía en Personas Desaparecidas, y la agrupación por mes se realiza según la fecha de inicio de procesamiento del sitio.</p>
+
+<p style="text-align:left; font-family:Montserrat;">Fuente: Vicefiscalía en Personas Desaparecidas. Sitios de inhumación clandestina en Jalisco. Información disponible en: <a href="https://fiscaliaenpersonasdesaparecidas.jalisco.gob.mx/registro-estatal-de-fosas-clandestinas/">https://fiscaliaenpersonasdesaparecidas.jalisco.gob.mx/registro-estatal-de-fosas-clandestinas/</a></p>
+
+<p> </p>
+
+<div class="plataforma-franja" aria-label="Acerca de la plataforma de seguridad">
+  <svg class="plataforma-franja__icono" viewBox="0 0 70 64" fill="none" aria-hidden="true" focusable="false">
+    <path d="M5 44 23 37l22 5 20-8v20l-20 7-22-5-18 7Z" fill="#9DAAB5" stroke="#D7E5E9" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M23 37v19m22-14v19" stroke="#5D7180" stroke-width="2.5"/>
+    <path d="M35 3c-10 0-18 8-18 18 0 13 18 32 18 32s18-19 18-32C53 11 45 3 35 3Z" fill="#70C5A5" stroke="#D7E5E9" stroke-width="2.5" stroke-linejoin="round"/>
+    <circle cx="35" cy="21" r="6" fill="#EAF7F2" stroke="#476F65" stroke-width="2"/>
+  </svg>
+  <span class="plataforma-franja__texto">Acerca de la plataforma de seguridad</span>
+</div>
 
 <p> </p>
 
 <div style="text-align: justify; font-family:Montserrat;">
 
-Esta es una plataforma de divulgación de información sobre seguridad conformada por la cooperación entre el Gobierno de Jalisco, academia y actores de la sociedad civil; surge de la necesidad de poner a disposición de la comunidad datos abiertos, comprensibles, confiables y oportunos sobre las cifras de incidencia delictiva en el Estado, y con ello contribuir en los procesos de política pública y toma de decisiones en materia de seguridad humana.
+Esta es una plataforma de divulgación de información sobre seguridad conformada por la cooperación entre el Gobierno de Jalisco, academia y actores de la sociedad civil; surge de la necesidad de poner a disposición de la comunidad datos abiertos, comprensibles, confiables y oportunos sobre las cifras de incidencia delictiva en el estado, y con ello contribuir en los procesos de política pública y toma de decisiones en materia de seguridad humana.
 
 <p> </p>
 
@@ -1024,44 +1202,26 @@ Esta es una plataforma de divulgación de información sobre seguridad conformad
 
 <p> </p>
 
-Recabar, procesar e integrar cifras sobre incidencia delictiva, proporcionada por autoridades estatales, con el fin de difundir información a través de un espacio digital de fácil consulta y acceso para la sociedad, así como emitir recomendaciones de políticas públicas dirigidas a mejorar las condiciones de seguridad del estado de Jalisco.
+Recabar, procesar e integrar cifras sobre carpetas de investigación de delitos del fuero común seleccionados, proporcionadas por autoridades estatales, con el fin de difundir información a través de un espacio digital de fácil consulta y acceso para la sociedad.
 
 <p> </p>
 
 <p> </p>
 
-**Objetivos específicos:**
+**Fuentes actuales:** Fiscalía del Estado de Jalisco.
 
 <p> </p>
 
--   Instaurar una mesa de trabajo permanente con participación de los sectores académico, sociedad civil y gobierno para el diseño y ejecución de la plataforma sobre seguridad
+**Medio de verificación:** Carpetas de investigación.
 
--   Establecer un espacio de comunicación, consulta y rendición de cuentas entre el gobierno y la ciudadanía sobre el tema de seguridad. \*Facilitar la comprensión del fenómeno delictivo en nuestra entidad proponiendo contenidos interactivos y de fácil consulta para todo tipo de público.
+<p> </p>
 
--   Promover la generación de conocimiento, la crítica y el diálogo para coadyuvar en la propuesta de políticas públicas y los procesos de toma decisión en el tema de seguridad humana.
+**Periodicidad de actualización:** Mensual.
 
--   Vincular los trabajos de la plataforma con instancias públicas relevantes en el tema de seguridad humana.
+<p> </p>
 
--   Garantizar el acceso a datos abiertos que permitan su reutilización.
+<!-- **Fecha de actualización:** el día 10 de cada mes o el siguiente día hábil a las 12:00 horas. -->
 
--   Presentar de forma desagregada los datos sobre incidencia delictiva y de la manera más extensa posible que permita a las personas acceder a más información.
+<p> </p>
 
-    <p> </p>
-
-    **Fuentes actuales:** Fiscalía Estatal de Jalisco.
-
-    <p> </p>
-
-    **Medio de verificación:** Carpetas de investigación.
-
-    <p> </p>
-
-    **Periodicidad de actualización:** Mensual.
-
-    <p> </p>
-
-    <!-- **Fecha de actualización:** el día 10 de cada mes o el siguiente día hábil a las 12:00 horas. -->
-
-    <p> </p>
-
-    </div>
+</div>
