@@ -19,7 +19,7 @@ from tempfile import TemporaryDirectory
 from zipfile import ZipFile
 from xml.etree import ElementTree
 
-from generar_tabla_desde_bd import CARPETA, PLANTILLA, generar_html, leer_datos
+from generar_tabla_desde_bd import CARPETA, PLANTILLA, SALIDAS, generar_html, leer_datos
 
 
 ENLACE_REPORTES = 'href="https://iieg.jalisco.gob.mx/reportes"'
@@ -56,8 +56,8 @@ def main() -> None:
                         help='Excel oficial de incidencia del mes que se conservará como base')
     parser.add_argument('--plantilla', type=Path, default=PLANTILLA,
                         help='HTML base con gráficas del mes; por defecto, reporte_mensual_con_tabla.html')
-    parser.add_argument('--salida-dir', type=Path, default=CARPETA,
-                        help='Carpeta donde se creará el paquete HTML + Excel')
+    parser.add_argument('--salida-dir', type=Path, default=SALIDAS,
+                        help='Carpeta principal donde se guardan los paquetes mensuales')
     parser.add_argument('--reemplazar', action='store_true',
                         help='Permite reemplazar un paquete local generado antes')
     parser.add_argument('--usar-rmd', action='store_true',
@@ -75,7 +75,7 @@ def main() -> None:
     if not clave:
         parser.error('No se proporcionó contraseña.')
     corte, filas = leer_datos(clave)
-    carpeta = args.salida_dir.resolve() / f'reporte_generado_{corte:%Y_%m}'
+    carpeta = args.salida_dir.resolve() / f'{corte:%Y_%m}'
     ultimo_dia = calendar.monthrange(corte.year, corte.month)[1]
     nombre = f'plataforma_seguridad_al_{ultimo_dia:02d}_{corte.month:02d}_{corte.year}.xlsx'
     excel = carpeta / nombre

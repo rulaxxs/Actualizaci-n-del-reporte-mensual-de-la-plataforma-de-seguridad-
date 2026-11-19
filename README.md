@@ -25,7 +25,7 @@ Este repositorio local contiene el reporte HTML y un generador para actualizar l
 | `cargar_septiembre_pruebas.py` | Carga ese PDF solo en `fosas_clandestinas_pruebas`, conservando agosto y deteniéndose si septiembre ya existe. |
 | `actualizar_fosas_local.py` | Alternativa local para validar y cargar un PDF ya descargado. Reutiliza la transformación y carga de `ETL-SIEEJ`, sin su descubrimiento automático. |
 | `actualizar_fosas_automatico_local.py` | Descubre y descarga el PDF oficial con el extractor de `ETL-SIEEJ`, lo transforma y, con `--cargar`, lo carga en la base local de pruebas. No requiere Airflow. |
-| `reporte_mensual_generado_AAAA_MM.html` | Resultado local de cada corte. Se puede abrir o enviar para revisión; no es el archivo que se edita a mano ni se incluye en Git. |
+| `reportes_generados/AAAA_MM/` | Carpeta local de cada corte. Guarda juntos el HTML y el Excel finales; no se incluye en Git. |
 
 Hay copias anteriores del HTML y un Excel de trabajo en este directorio. Se conservan localmente, pero no son necesarios para ejecutar el generador.
 
@@ -51,7 +51,7 @@ Cada PDF contiene un registro completo, no únicamente los casos nuevos del mes.
 2. Ejecutar `actualizar_fosas_automatico_local.py --corte AAAA-MM` para descubrir, descargar y validar el PDF oficial sin modificar PostgreSQL. Comparar la URL y las cifras con la fuente.
 3. Ejecutar el mismo comando con `--cargar` para guardar el nuevo corte en `fosas_clandestinas_pruebas`. Revisar el corte, los renglones y los meses que informa al terminar.
 4. Desde `reporte_nuevo_para_enviar`, ejecutar `node .\actualizar_graficas_desde_html.mjs --nuevo "C:\ruta\al\HTML-recibido.html" --salida .\reporte_mensual_con_graficas_AAAA_MM.html`. Ese archivo es un borrador: aún contiene la tabla de inhumación anterior.
-5. Desde `ETL-SIEEJ`, ejecutar `.\.venv\Scripts\python.exe ..\reporte_nuevo_para_enviar\generar_tabla_desde_bd.py --plantilla ..\reporte_nuevo_para_enviar\reporte_mensual_con_graficas_AAAA_MM.html`. El resultado es `reporte_mensual_generado_AAAA_MM.html`.
+5. Desde `ETL-SIEEJ`, ejecutar `.\.venv\Scripts\python.exe ..\reporte_nuevo_para_enviar\generar_tabla_desde_bd.py --plantilla ..\reporte_nuevo_para_enviar\reporte_mensual_con_graficas_AAAA_MM.html`. El resultado queda en `reporte_nuevo_para_enviar/reportes_generados/AAAA_MM/reporte_mensual_generado_AAAA_MM.html`.
 6. Recibir el Excel de incidencia del mismo mes. Para generar juntos el HTML y el Excel combinado desde PostgreSQL, ejecutar `generar_reporte_con_excel.py --excel-incidencia "C:\ruta\al\Excel-del-mes.xlsx" --plantilla "C:\ruta\al\borrador-con-graficas.html"`. El Excel conserva las hojas de incidencia y agrega `Sitios de inhumación`; no incluye `Inhumación detalle`.
 7. Revisar las fechas, gráficas, tabla, hojas y enlaces de ambos archivos. Publicar solo por el procedimiento autorizado del equipo.
 
@@ -79,7 +79,7 @@ Si el archivo de salida ya existe, el programa se detiene para no sobrescribirlo
 .\.venv\Scripts\python.exe ..\reporte_nuevo_para_enviar\generar_tabla_desde_bd.py --reemplazar
 ```
 
-El generador comprueba que la suma mensual de renglones y víctimas coincide con la última publicación cargada. Produce `reporte_mensual_generado_AAAA_MM.html`. Las gráficas, sus cálculos y las demás secciones del HTML permanecen como en la plantilla; **no se actualizan desde esta base**.
+El generador comprueba que la suma mensual de renglones y víctimas coincide con la última publicación cargada. Produce `reportes_generados/AAAA_MM/reporte_mensual_generado_AAAA_MM.html`. Las gráficas, sus cálculos y las demás secciones del HTML permanecen como en la plantilla; **no se actualizan desde esta base**.
 
 ### Incorporar las gráficas y la tabla de delitos de un HTML mensual nuevo
 
@@ -96,7 +96,7 @@ Este es **solo un borrador**: la tabla de inhumación y el enlace al Excel puede
 Si ya generaste el reporte con una versión anterior del programa, `limpiar_lineas_plotly.mjs` puede crear una copia sin las líneas punteadas sin volver a consultar PostgreSQL:
 
 ```powershell
-node .\limpiar_lineas_plotly.mjs .\reporte_mensual_generado_2026_09.html .\reporte_mensual_generado_2026_09_sin_lineas.html
+node .\limpiar_lineas_plotly.mjs .\reportes_generados\2026_09\reporte_mensual_generado_2026_09.html .\reportes_generados\2026_09\reporte_mensual_generado_2026_09_sin_lineas.html
 ```
 
 Tras revisar el borrador, puedes usarlo como base para generar la tabla de inhumación actualizada:
@@ -120,7 +120,7 @@ La prueba de septiembre genera `vista_previa_sin_bd_2026_09_sin_oct18.html`; no 
 Desde `ETL-SIEEJ`, indica el corte esperado. El programa busca el PDF en el índice oficial, lo descarga y transforma; sin `--cargar` no escribe en PostgreSQL:
 
 ```powershell
-cd C:\Users\raul\Documents\ChatGPT\defunciones\ETL-SIEEJ
+cd ..\ETL-SIEEJ
 .\.venv\Scripts\python.exe ..\reporte_nuevo_para_enviar\actualizar_fosas_automatico_local.py --corte 2026-10
 ```
 
@@ -137,7 +137,7 @@ El programa comprueba la base y rechaza cortes ya cargados o anteriores. Pide la
 El paquete `core.pipelines.fosas_clandestinas` no tiene `__main__.py`: la instrucción `python -m core.pipelines.fosas_clandestinas update` del README del ETL no funciona en esta copia. El DAG `etl_fosas_clandestinas_update` de Airflow define el flujo automático completo. `actualizar_fosas_local.py` es una alternativa sin Airflow: recibe un PDF ya descargado y ejecuta la transformación y carga del mismo ETL; no descarga el PDF. **Primero valida sin escribir en PostgreSQL**:
 
 ```powershell
-cd C:\Users\raul\Documents\ChatGPT\defunciones\ETL-SIEEJ
+cd ..\ETL-SIEEJ
 .\.venv\Scripts\python.exe ..\reporte_nuevo_para_enviar\actualizar_fosas_local.py --pdf "C:\ruta\al\PDF-oficial.pdf" --corte 2026-10 --url "https://fiscaliaenpersonasdesaparecidas.jalisco.gob.mx/wp-content/uploads/2026/11/archivo.pdf"
 ```
 
@@ -156,15 +156,15 @@ El script pide la contraseña, verifica que la base sea `fosas_clandestinas_prue
 Cuando llegue el Excel de incidencia correspondiente al reporte, pásalo explícitamente al nuevo generador. No se reutiliza automáticamente un archivo del mes anterior:
 
 ```powershell
-cd C:\Users\raul\Documents\ChatGPT\defunciones\ETL-SIEEJ
+cd ..\ETL-SIEEJ
 .\.venv\Scripts\python.exe ..\reporte_nuevo_para_enviar\generar_reporte_con_excel.py --excel-incidencia "C:\ruta\al\Excel-de-incidencia-del-mes.xlsx"
 ```
 
 Además de Python con `psycopg2`, esta opción necesita Node.js y `@oai/artifact-tool` disponible para `combinar_excel_reporte.mjs`. En esta computadora se usa el runtime de Codex mediante un `node_modules` local que está excluido de Git. En otra computadora o en GitLab habrá que proporcionar esa dependencia antes de ejecutar el comando.
 
-El resultado queda en `reporte_nuevo_para_enviar/reporte_generado_AAAA_MM/` y contiene `reporte_mensual_AAAA_MM.html` y `plataforma_seguridad_al_DD_MM_AAAA.xlsx`, donde `DD_MM_AAAA` es el último día y el número de mes del corte de inhumación; por ejemplo, `plataforma_seguridad_al_31_10_2026.xlsx`. Para conservar las gráficas del mes recibido, pasa explícitamente `--plantilla` con el borrador generado por `actualizar_graficas_desde_html.mjs`; el valor por defecto puede contener gráficas anteriores. El botón «Descargar reporte del mes» del HTML abre la página oficial de reportes del IIEG y el botón «Datos abiertos» abre el repositorio oficial de datos: ninguno descarga directamente este Excel. El Excel se genera como archivo local separado, conserva las hojas originales de incidencia y agrega únicamente la pestaña `Sitios de inhumación`, cuyo título interno también dice `Sitios de inhumación`. No modifica ni el Excel de entrada ni la plantilla HTML.
+El resultado queda en `reporte_nuevo_para_enviar/reportes_generados/AAAA_MM/` y contiene `reporte_mensual_AAAA_MM.html` y `plataforma_seguridad_al_DD_MM_AAAA.xlsx`, donde `DD_MM_AAAA` es el último día y el número de mes del corte de inhumación; por ejemplo, `plataforma_seguridad_al_31_10_2026.xlsx`. Para conservar las gráficas del mes recibido, pasa explícitamente `--plantilla` con el borrador generado por `actualizar_graficas_desde_html.mjs`; el valor por defecto puede contener gráficas anteriores. El botón «Descargar reporte del mes» del HTML abre la página oficial de reportes del IIEG y el botón «Datos abiertos» abre el repositorio oficial de datos: ninguno descarga directamente este Excel. El Excel se genera como archivo local separado, conserva las hojas originales de incidencia y agrega únicamente la pestaña `Sitios de inhumación`, cuyo título interno también dice `Sitios de inhumación`. No modifica ni el Excel de entrada ni la plantilla HTML.
 
-**Paquete de octubre de 2026:** se preparó una copia local en `outputs/01a07d7c-c08b-7883-8b40-150c16819dee/reporte_octubre_2026/` con el HTML generado y el Excel combinado. El Excel de entrada fue `Incidencia Delictiva mensual octubre 2026 valores.xlsx`; se conservaron `NOTA`, `ESTADO`, `AMG` e `INTERIOR` y se agregó `Sitios de inhumación` con los 87 meses visibles del HTML. No se agregó `Inhumación detalle`. Este paquete no se publicó ni se incluye en Git.
+**Paquete de octubre de 2026:** se guardó una copia local en `reportes_generados/2026_10/` con el HTML generado y el Excel combinado. El Excel de entrada fue `Incidencia Delictiva mensual octubre 2026 valores.xlsx`; se conservaron `NOTA`, `ESTADO`, `AMG` e `INTERIOR` y se agregó `Sitios de inhumación` con los 87 meses visibles del HTML. No se agregó `Inhumación detalle`. Este paquete no se publicó ni se incluye en Git.
 
 ### Opción con el R Markdown fuente
 
@@ -196,4 +196,4 @@ Si ya existe un paquete con ese corte, el programa se detiene. `--reemplazar` pe
 
 ## Repositorio GitLab
 
-Este repositorio es **separado** de `ETL-SIEEJ`. En esta computadora, `origin` apunta al GitLab institucional `plataforma-de-seguridad_generacion-de-tabla-de-inhumaciones` y `github` al repositorio personal `Actualizaci-n-del-reporte-mensual-de-la-plataforma-de-seguridad-`. El `.gitignore` evita añadir salidas generadas, respaldos, contraseñas y entornos locales. Antes de cada commit, revisar `git status` y comprobar que no aparezcan datos sensibles. Los reportes HTML y Excel generados para cada mes se entregan como archivos separados: no se incluyen en Git.
+Este repositorio es **separado** de `ETL-SIEEJ`. Tiene copias en el GitLab institucional `plataforma-de-seguridad_generacion-de-tabla-de-inhumaciones` y en el GitHub personal `Actualizaci-n-del-reporte-mensual-de-la-plataforma-de-seguridad-`. Los nombres de los remotos dependen de cómo se haya clonado el proyecto; consúltalos con `git remote -v`. El `.gitignore` evita añadir salidas generadas, respaldos, contraseñas y entornos locales. Antes de cada commit, revisar `git status` y comprobar que no aparezcan datos sensibles. Los reportes HTML y Excel generados para cada mes se entregan como archivos separados: no se incluyen en Git.

@@ -4,18 +4,28 @@ Este proyecto prepara una copia del reporte mensual HTML y un Excel con la tabla
 
 ## 1. Preparar las carpetas una sola vez
 
-En la computadora de trabajo, `ETL-SIEEJ` y este repositorio deben estar dentro de la misma carpeta. El programa local busca el ETL en `../ETL-SIEEJ`.
+En la computadora de trabajo, `ETL-SIEEJ` y este repositorio deben estar dentro de la misma carpeta. Puedes llamar a esa carpeta principal `reporte_plataforma_de_seguridad` y guardarla donde prefieras. El programa busca el ETL en `../ETL-SIEEJ` respecto a este repositorio; no depende del nombre de usuario ni de una ruta absoluta.
 
 ```text
-defunciones/
+reporte_plataforma_de_seguridad/
 ├── ETL-SIEEJ/
-└── reporte_nuevo_para_enviar/   ← este repositorio en la computadora actual
+└── reporte_nuevo_para_enviar/
+    ├── README.md
+    ├── GUIA_PASO_A_PASO.md
+    ├── reportes_generados/       ← salidas locales; no se suben a Git
+    │   └── 2026_10/
+    │       ├── reporte_mensual_2026_10.html
+    │       └── plataforma_seguridad_al_31_10_2026.xlsx
+    └── otros programas y plantilla
 ```
 
-En otra computadora puedes clonar este proyecto por HTTPS, porque el acceso SSH requiere registrar una clave en GitHub:
+En otra computadora, crea la carpeta principal y clona este proyecto por HTTPS. Si ya tienes `ETL-SIEEJ`, colócalo como carpeta hermana; no necesitas volver a clonarlo:
 
 ```powershell
+mkdir reporte_plataforma_de_seguridad
+cd reporte_plataforma_de_seguridad
 git clone https://github.com/rulaxxs/Actualizaci-n-del-reporte-mensual-de-la-plataforma-de-seguridad-.git reporte_nuevo_para_enviar
+git clone https://github.com/iieg-oficial/ETL-SIEEJ.git ETL-SIEEJ
 ```
 
 También se necesita `ETL-SIEEJ` como carpeta hermana, su entorno Python `.venv`, PostgreSQL con las tablas y la vista del ETL, el catálogo de municipios y Node.js. La configuración y las contraseñas no se guardan en Git. En esta computadora esos elementos ya se prepararon. El Excel combinado usa `@oai/artifact-tool` mediante el runtime local de Codex; en otra computadora habrá que proporcionar esa dependencia antes de ejecutar la combinación.
@@ -25,18 +35,18 @@ También se necesita `ETL-SIEEJ` como carpeta hermana, su entorno Python `.venv`
 Desde PowerShell, entra a este repositorio y trae los cambios de GitHub:
 
 ```powershell
-cd C:\Users\raul\Documents\ChatGPT\defunciones\reporte_nuevo_para_enviar
-git pull github main
+cd .\reporte_nuevo_para_enviar
+git pull origin main
 ```
 
-Ese comando corresponde a esta computadora, donde `github` es el segundo remoto y `origin` es GitLab. Si clonaste desde GitHub en otra computadora, usa `git pull origin main`. `git remote -v` muestra los nombres disponibles.
+Si clonaste desde GitHub, `origin` apunta a GitHub. `git remote -v` muestra a qué servidor apunta cada remoto.
 
 ## 3. Descargar y validar el nuevo PDF mediante el ETL
 
 Entra a `ETL-SIEEJ`. Sustituye `2026-10` por el corte que corresponda al nuevo PDF oficial. Primero ejecuta **sin** `--cargar`:
 
 ```powershell
-cd C:\Users\raul\Documents\ChatGPT\defunciones\ETL-SIEEJ
+cd ..\ETL-SIEEJ
 .\.venv\Scripts\python.exe ..\reporte_nuevo_para_enviar\actualizar_fosas_automatico_local.py --corte 2026-10
 ```
 
@@ -66,7 +76,7 @@ El PDF de Fiscalía sirve para la tabla de inhumación. No sustituye esos dos ar
 Desde este repositorio, cambia la ruta del ejemplo por la ubicación del HTML recibido. Usa el año y mes del reporte en el nombre del borrador:
 
 ```powershell
-cd C:\Users\raul\Documents\ChatGPT\defunciones\reporte_nuevo_para_enviar
+cd ..\reporte_nuevo_para_enviar
 node .\actualizar_graficas_desde_html.mjs --nuevo "C:\ruta\reporte_recibido.html" --salida .\reporte_mensual_con_graficas_2026_10.html
 ```
 
@@ -77,16 +87,16 @@ El resultado es un borrador con las gráficas, el mapa, las 16 filas de delitos 
 Desde `ETL-SIEEJ`, indica el Excel recibido y el borrador del paso anterior:
 
 ```powershell
-cd C:\Users\raul\Documents\ChatGPT\defunciones\ETL-SIEEJ
+cd ..\ETL-SIEEJ
 .\.venv\Scripts\python.exe ..\reporte_nuevo_para_enviar\generar_reporte_con_excel.py --excel-incidencia "C:\ruta\Incidencia_del_mes.xlsx" --plantilla ..\reporte_nuevo_para_enviar\reporte_mensual_con_graficas_2026_10.html
 ```
 
-El programa lee la última publicación de PostgreSQL y crea `reporte_nuevo_para_enviar/reporte_generado_2026_10/` con:
+El programa lee la última publicación de PostgreSQL y crea `reporte_nuevo_para_enviar/reportes_generados/2026_10/` con:
 
 - `reporte_mensual_2026_10.html`: gráficas del HTML recibido y tabla de inhumación del último corte de la base.
 - `plataforma_seguridad_al_31_10_2026.xlsx`: hojas originales de incidencia más `Sitios de inhumación`.
 
-El nombre del Excel usa el último día del mes, el número de mes y el año. Si el paquete ya existe, el programa se detiene; usa `--reemplazar` solo después de revisar el archivo existente. El botón «Descargar reporte del mes» del HTML lleva a la página de reportes del IIEG; no descarga este Excel directamente.
+El nombre del Excel usa el último día del mes, el número de mes y el año. El programa crea una carpeta nueva `AAAA_MM` para cada corte: por ejemplo, noviembre se guardará en `reportes_generados/2026_11/`, sin borrar octubre. Si el paquete ya existe, el programa se detiene; usa `--reemplazar` solo después de revisar el archivo existente. El botón «Descargar reporte del mes» del HTML lleva a la página de reportes del IIEG; no descarga este Excel directamente.
 
 ## 8. Revisar y entregar
 
@@ -96,14 +106,14 @@ Entrega los archivos finales a quien revise y publique el reporte. Los archivos 
 
 ## 9. Guardar cambios de código en Git
 
-Este paso solo se usa cuando cambias programas, plantilla o documentación. Desde la carpeta del repositorio:
+Este paso solo se usa cuando cambias programas, plantilla o documentación. Vuelve a la carpeta del repositorio:
 
 ```powershell
+cd ..\reporte_nuevo_para_enviar
 git status
 git add README.md GUIA_PASO_A_PASO.md
 git commit -m "Actualizar instrucciones del reporte"
-git push github main
 git push origin main
 ```
 
-Antes de `git add`, comprueba con `git status` que no estás agregando contraseñas ni archivos de trabajo. En esta computadora, `github` apunta a tu repositorio personal y `origin` al GitLab institucional. Si clonaste desde GitHub, `origin` será GitHub y quizá no exista un segundo remoto. No ejecutes `git add` ni `git commit` si no cambiaste el código o la documentación.
+Antes de `git add`, comprueba con `git status` que no estás agregando contraseñas ni archivos de trabajo. Si también tienes configurado un remoto institucional llamado `gitlab`, puedes ejecutar `git push gitlab main`. No ejecutes `git add` ni `git commit` si no cambiaste el código o la documentación.
