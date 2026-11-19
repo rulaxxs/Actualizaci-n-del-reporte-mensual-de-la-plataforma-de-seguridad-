@@ -8,7 +8,6 @@ Este repositorio local contiene el reporte HTML y un generador para actualizar l
 - Cortes probados: agosto, septiembre y octubre de 2026. Octubre se cargó en la base de pruebas con el comando local automático y se generó un HTML local con la tabla actualizada; el sitio público no cambió.
 - Base usada: `fosas_clandestinas_pruebas`, en PostgreSQL local.
 - Septiembre: 265 renglones extraídos; 264 incluidos en la tabla después de omitir el periodo `oct-18` sin cifra; 86 meses visibles.
-- Sitio publicado: [reporte mensual](https://reporte-mensual-inhumacion-jalisco.alive-fawn-1254.chatgpt.site/). Es una copia estática: no se conecta a PostgreSQL cuando alguien la visita.
 
 ## Archivos principales
 
@@ -184,15 +183,6 @@ Si ya existe un paquete con ese corte, el programa se detiene. `--reemplazar` pe
 6. Publicar el HTML validado en el sitio y verificar el enlace público.
 
 **No publicar automáticamente** solo porque el script terminó bien. En este momento el paso de aprobación y publicación es manual.
-
-## Qué falta decidir con el equipo
-
-- Si la cifra oficial de “número de sitios” debe contar periodos (`COUNT(*)`) o sitios únicos.
-- Quién valida y autoriza cada corte, y cómo se registrará esa aprobación.
-- Si se publicará un HTML nuevo cada mes o si hará falta una API. Una API no es necesaria para actualizar mensualmente un reporte estático.
-- Dónde estarán PostgreSQL y las credenciales de producción. La base local de pruebas no debe exponerse en internet.
-- Cómo se regenerarán las demás gráficas: ya se obtuvo una copia del R Markdown, pero faltan sus insumos, recursos y entorno R para ejecutarlo localmente.
-- Qué archivos deben formar parte del futuro repositorio y quién tendrá acceso de escritura/publicación.
 
 ## Repositorio GitLab
 
