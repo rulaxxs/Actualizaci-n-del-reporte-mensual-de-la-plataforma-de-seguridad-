@@ -1,6 +1,6 @@
 # Reporte mensual: tabla y descarga de sitios de inhumación clandestina
 
-Este repositorio local contiene el reporte HTML y un generador para actualizar la tabla mensual de inhumación con datos de PostgreSQL. También puede preparar, en un solo paso, el HTML y el Excel de incidencia con una hoja adicional de inhumación. El proceso de extracción y carga está en el repositorio oficial [ETL-SIEEJ](https://github.com/iieg-oficial/ETL-SIEEJ). Todavía no es una publicación automática. Para repetir el trabajo mes a mes, consulta la [guía paso a paso](GUIA_PASO_A_PASO.md).
+Este repositorio local contiene el reporte HTML y un generador para actualizar la tabla mensual de inhumación con datos de PostgreSQL. También puede preparar, en un solo paso, el HTML y el Excel de incidencia con una hoja adicional de inhumación. El proceso de extracción y carga está en el repositorio oficial [ETL-SIEEJ](https://github.com/iieg-oficial/ETL-SIEEJ). Todavía no es una publicación automática. Para preparar la base local, consulta [CONFIGURAR_POSTGRESQL.md](CONFIGURAR_POSTGRESQL.md); para repetir el trabajo mes a mes, consulta la [guía paso a paso](GUIA_PASO_A_PASO.md).
 
 ## Estado actual
 

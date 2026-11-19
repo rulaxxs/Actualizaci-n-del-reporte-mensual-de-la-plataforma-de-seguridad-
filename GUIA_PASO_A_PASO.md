@@ -28,7 +28,7 @@ git clone https://github.com/rulaxxs/Actualizaci-n-del-reporte-mensual-de-la-pla
 git clone https://github.com/iieg-oficial/ETL-SIEEJ.git ETL-SIEEJ
 ```
 
-También se necesita `ETL-SIEEJ` como carpeta hermana, su entorno Python `.venv`, PostgreSQL con las tablas y la vista del ETL, el catálogo de municipios y Node.js para copiar las gráficas del HTML. Prepara `.venv` con las dependencias indicadas por `ETL-SIEEJ`. La configuración y las contraseñas no se guardan en Git.
+También se necesita `ETL-SIEEJ` como carpeta hermana, su entorno Python `.venv`, PostgreSQL con las tablas y la vista del ETL, el catálogo de municipios y Node.js para copiar las gráficas del HTML. Si aún no tienes las bases locales, sigue [CONFIGURAR_POSTGRESQL.md](CONFIGURAR_POSTGRESQL.md). Prepara `.venv` con las dependencias indicadas por `ETL-SIEEJ`. La configuración y las contraseñas no se guardan en Git.
 
 Para usar los mismos comandos mensuales en cualquier sistema, activa el entorno Python del ETL. En **Windows (PowerShell)**:
 
