@@ -1,6 +1,6 @@
 # Cómo usar este repositorio cada mes
 
-Este proyecto prepara una copia del reporte mensual HTML y un Excel con la tabla de sitios de inhumación. El ETL que obtiene el PDF de Fiscalía vive en el repositorio hermano `ETL-SIEEJ`. La base usada en las pruebas es `fosas_clandestinas_pruebas`, en PostgreSQL local. Ninguno de los comandos publica el sitio web.
+Este proyecto prepara una copia del reporte mensual HTML y un Excel con la tabla de sitios de inhumación. El ETL que obtiene el PDF de Fiscalía vive en el repositorio hermano [ETL-SIEEJ](https://github.com/iieg-oficial/ETL-SIEEJ). La base usada en las pruebas es `fosas_clandestinas_pruebas`, en PostgreSQL local. Ninguno de los comandos publica el sitio web.
 
 ## 1. Preparar las carpetas una sola vez
 
