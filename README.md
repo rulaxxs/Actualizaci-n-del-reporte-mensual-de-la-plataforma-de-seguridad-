@@ -63,7 +63,7 @@ Para mostrar la tabla se omite únicamente el periodo `oct-18` del sitio especia
 
 ## Reproducir la generación local
 
-Requisitos: Windows PowerShell, PostgreSQL con la base de pruebas ya cargada y Python con `psycopg2` instalado. En la configuración actual se usa el entorno virtual de `ETL-SIEEJ`.
+Requisitos: PostgreSQL con la base de pruebas ya cargada y Python con `psycopg2` instalado. Se usa el entorno virtual de `ETL-SIEEJ`. Los comandos de esta sección muestran rutas de Windows; para Windows, macOS y Linux consulta [GUIA_PASO_A_PASO.md](GUIA_PASO_A_PASO.md).
 
 Con este repositorio y `ETL-SIEEJ` como carpetas hermanas, desde `ETL-SIEEJ`:
 
