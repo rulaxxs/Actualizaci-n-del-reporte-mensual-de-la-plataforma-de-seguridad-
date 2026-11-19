@@ -28,7 +28,15 @@ git clone https://github.com/rulaxxs/Actualizaci-n-del-reporte-mensual-de-la-pla
 git clone https://github.com/iieg-oficial/ETL-SIEEJ.git ETL-SIEEJ
 ```
 
-También se necesita `ETL-SIEEJ` como carpeta hermana, su entorno Python `.venv`, PostgreSQL con las tablas y la vista del ETL, el catálogo de municipios y Node.js. La configuración y las contraseñas no se guardan en Git. En esta computadora esos elementos ya se prepararon. El Excel combinado usa `@oai/artifact-tool` mediante el runtime local de Codex; en otra computadora habrá que proporcionar esa dependencia antes de ejecutar la combinación.
+También se necesita `ETL-SIEEJ` como carpeta hermana, su entorno Python `.venv`, PostgreSQL con las tablas y la vista del ETL, el catálogo de municipios y Node.js para copiar las gráficas del HTML. La configuración y las contraseñas no se guardan en Git. El Excel combinado usa `openpyxl`, una biblioteca de Python que se instala una vez en el entorno del ETL:
+
+```powershell
+cd .\ETL-SIEEJ
+.\.venv\Scripts\python.exe -m pip install -r ..\reporte_nuevo_para_enviar\requirements_excel.txt
+cd ..
+```
+
+Codex no es necesario para generar el reporte. El combinador se detiene si un Excel nuevo contiene gráficos, objetos, tablas dinámicas, vínculos externos, macros o fórmulas que requieren revisión antes de guardar una copia.
 
 ## 2. Actualizar el código antes de empezar
 

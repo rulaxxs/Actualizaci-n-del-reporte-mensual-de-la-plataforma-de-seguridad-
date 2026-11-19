@@ -20,7 +20,7 @@ Este repositorio local contiene el reporte HTML y un generador para actualizar l
 | `generar_reporte_con_excel.py` | Recibe el Excel de incidencia del mes, consulta la última publicación de inhumación y genera juntos el HTML y el Excel combinado. |
 | `reporte_mensual_integrado.Rmd` | Copia del R Markdown recibido; reemplaza la tabla antigua de fosas por el CSV mensual preparado por Python y coloca la tabla entre la comparativa de vida y el mapa. |
 | `renderizar_reporte_integrado.R` | Pasa al R Markdown el CSV, la fecha de corte y el nombre del Excel descargable. |
-| `combinar_excel_reporte.mjs` | Conserva las hojas del Excel de incidencia y agrega únicamente `Sitios de inhumación`. |
+| `combinar_excel_reporte.py` | Conserva las hojas del Excel de incidencia y agrega únicamente `Sitios de inhumación`, usando `openpyxl` en Python. |
 | `probar_pdf_sin_bd.py` | Prueba local del PDF de septiembre de 2026 y crea una vista previa sin cargar PostgreSQL ni publicar. |
 | `cargar_septiembre_pruebas.py` | Carga ese PDF solo en `fosas_clandestinas_pruebas`, conservando agosto y deteniéndose si septiembre ya existe. |
 | `actualizar_fosas_local.py` | Alternativa local para validar y cargar un PDF ya descargado. Reutiliza la transformación y carga de `ETL-SIEEJ`, sin su descubrimiento automático. |
@@ -160,7 +160,7 @@ cd ..\ETL-SIEEJ
 .\.venv\Scripts\python.exe ..\reporte_nuevo_para_enviar\generar_reporte_con_excel.py --excel-incidencia "C:\ruta\al\Excel-de-incidencia-del-mes.xlsx"
 ```
 
-Además de Python con `psycopg2`, esta opción necesita Node.js y `@oai/artifact-tool` disponible para `combinar_excel_reporte.mjs`. En esta computadora se usa el runtime de Codex mediante un `node_modules` local que está excluido de Git. En otra computadora o en GitLab habrá que proporcionar esa dependencia antes de ejecutar el comando.
+Además de Python con `psycopg2`, esta opción necesita `openpyxl`. Instálalo una vez en el entorno virtual de `ETL-SIEEJ` con `.\.venv\Scripts\python.exe -m pip install -r ..\reporte_nuevo_para_enviar\requirements_excel.txt`. El Excel se genera con Python y no requiere Codex ni `@oai/artifact-tool`. Node.js sigue siendo necesario para `actualizar_graficas_desde_html.mjs`, que copia las gráficas del HTML recibido. El combinador detiene la ejecución si el Excel de incidencia contiene objetos o fórmulas que `openpyxl` podría alterar; el Excel de octubre de 2026 no los contiene.
 
 El resultado queda en `reporte_nuevo_para_enviar/reportes_generados/AAAA_MM/` y contiene `reporte_mensual_AAAA_MM.html` y `plataforma_seguridad_al_DD_MM_AAAA.xlsx`, donde `DD_MM_AAAA` es el último día y el número de mes del corte de inhumación; por ejemplo, `plataforma_seguridad_al_31_10_2026.xlsx`. Para conservar las gráficas del mes recibido, pasa explícitamente `--plantilla` con el borrador generado por `actualizar_graficas_desde_html.mjs`; el valor por defecto puede contener gráficas anteriores. El botón «Descargar reporte del mes» del HTML abre la página oficial de reportes del IIEG y el botón «Datos abiertos» abre el repositorio oficial de datos: ninguno descarga directamente este Excel. El Excel se genera como archivo local separado, conserva las hojas originales de incidencia y agrega únicamente la pestaña `Sitios de inhumación`, cuyo título interno también dice `Sitios de inhumación`. No modifica ni el Excel de entrada ni la plantilla HTML.
 

@@ -1,8 +1,7 @@
 r"""Genera juntos el HTML mensual y su descarga Excel desde la base de pruebas.
 
 Se debe indicar el Excel de incidencia del mes. No publica el sitio ni modifica
-los archivos de entrada. Requiere el mismo entorno Python que el ETL y Node.js
-con @oai/artifact-tool disponible en node_modules.
+los archivos de entrada. Requiere openpyxl en el entorno Python del ETL.
 """
 
 import argparse
@@ -15,6 +14,7 @@ from getpass import getpass
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile
 from xml.etree import ElementTree
@@ -38,16 +38,6 @@ def validar_enlaces(html: str) -> None:
 
 def etiqueta_mes(mes: date) -> str:
     return f'{MESES_CORTOS[mes.month - 1]}-{mes.year % 100:02d}'
-
-
-def buscar_node() -> str:
-    instalado = shutil.which('node')
-    if instalado:
-        return instalado
-    incluido = Path.home() / '.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe'
-    if incluido.is_file():
-        return str(incluido)
-    raise FileNotFoundError('Falta Node.js para crear el Excel.')
 
 
 def main() -> None:
@@ -95,13 +85,13 @@ def main() -> None:
         json_path = Path(temporal) / 'datos.json'
         excel_temporal = Path(temporal) / nombre
         json_path.write_text(json.dumps(datos, ensure_ascii=False), encoding='utf-8')
-        resultado = subprocess.run([
-            buscar_node(), str(CARPETA / 'combinar_excel_reporte.mjs'),
+        subprocess.run([
+            sys.executable, str(CARPETA / 'combinar_excel_reporte.py'),
             '--excel-incidencia', str(args.excel_incidencia.resolve()),
             '--datos-inhumacion', str(json_path), '--salida', str(excel_temporal),
-        ], check=False)
+        ], check=True)
         if not excel_temporal.is_file():
-            raise RuntimeError(f'El generador no creó el Excel (código {resultado.returncode}).')
+            raise RuntimeError('El generador no creó el Excel.')
         with ZipFile(excel_temporal) as libro:
             if libro.testzip() is not None or 'xl/workbook.xml' not in libro.namelist():
                 raise RuntimeError('El Excel generado no pasó la comprobación de integridad.')
@@ -110,12 +100,6 @@ def main() -> None:
             hojas = [item.attrib['name'] for item in raiz.findall(f'.//{espacio}sheet')]
             if hojas[-1:] != ['Sitios de inhumación'] or 'Inhumación detalle' in hojas:
                 raise RuntimeError('El Excel no contiene la hoja de inhumación esperada.')
-        # El runtime incluido con Codex puede terminar con un código no cero
-        # después de guardar. Solo se continúa si el archivo pasó la prueba ZIP
-        # y contiene la hoja mensual esperada; la anomalía se deja visible.
-        if resultado.returncode != 0:
-            print(f'Advertencia: Node.js terminó con código {resultado.returncode}, '
-                  'pero el Excel generado pasó la verificación de integridad.')
         if args.usar_rmd:
             csv_temporal = Path(temporal) / 'tabla_inhumacion.csv'
             with csv_temporal.open('w', encoding='utf-8', newline='') as archivo:
