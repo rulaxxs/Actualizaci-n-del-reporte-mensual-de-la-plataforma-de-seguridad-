@@ -36,11 +36,11 @@ cd .\ETL-SIEEJ
 cd ..
 ```
 
-Codex no es necesario para generar el reporte. El combinador se detiene si un Excel nuevo contiene gráficos, objetos, tablas dinámicas, vínculos externos, macros o fórmulas que requieren revisión antes de guardar una copia.
+El combinador se detiene si un Excel nuevo contiene gráficos, objetos, tablas dinámicas, vínculos externos, macros o fórmulas que requieren revisión antes de guardar una copia.
 
 ## 2. Actualizar el código antes de empezar
 
-Desde PowerShell, entra a este repositorio y trae los cambios de GitHub:
+Desde la terminal, entra a este repositorio y trae los cambios de GitHub:
 
 ```powershell
 cd .\reporte_nuevo_para_enviar
