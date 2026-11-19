@@ -6,13 +6,11 @@ los archivos de entrada. Requiere openpyxl en el entorno Python del ETL.
 
 import argparse
 import calendar
-import csv
 import json
 import os
 from datetime import date
 from getpass import getpass
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 from tempfile import TemporaryDirectory
@@ -50,17 +48,11 @@ def main() -> None:
                         help='Carpeta principal donde se guardan los paquetes mensuales')
     parser.add_argument('--reemplazar', action='store_true',
                         help='Permite reemplazar un paquete local generado antes')
-    parser.add_argument('--usar-rmd', action='store_true',
-                        help='Genera el HTML con reporte_mensual_integrado.Rmd y Rscript')
-    parser.add_argument('--rscript', default='Rscript',
-                        help='Ruta de Rscript si no está en PATH')
     args = parser.parse_args()
     if not args.excel_incidencia.is_file() or args.excel_incidencia.suffix.lower() != '.xlsx':
         parser.error('El Excel de incidencia no existe o no es .xlsx.')
     if not args.plantilla.is_file():
         parser.error(f'No existe la plantilla: {args.plantilla}')
-    if args.usar_rmd and not shutil.which(args.rscript):
-        parser.error('No se encontró Rscript. Instala R o indica su ruta con --rscript.')
     clave = os.getenv('DB_PASSWORD') or getpass('Contraseña de PostgreSQL (no se mostrará): ')
     if not clave:
         parser.error('No se proporcionó contraseña.')
@@ -74,9 +66,8 @@ def main() -> None:
         raise SystemExit(f'Ya existe el paquete {carpeta}. Usa --reemplazar solo tras revisarlo.')
     carpeta.mkdir(parents=True, exist_ok=True)
     plantilla = args.plantilla.read_text(encoding='utf-8')
-    contenido = None if args.usar_rmd else generar_html(plantilla, corte, filas)
-    if contenido is not None:
-        validar_enlaces(contenido)
+    contenido = generar_html(plantilla, corte, filas)
+    validar_enlaces(contenido)
     datos = {
         'corte': corte.isoformat(),
         'mensual': [[etiqueta_mes(mes), sitios, victimas] for mes, sitios, victimas in filas],
@@ -100,30 +91,9 @@ def main() -> None:
             hojas = [item.attrib['name'] for item in raiz.findall(f'.//{espacio}sheet')]
             if hojas[-1:] != ['Sitios de inhumación'] or 'Inhumación detalle' in hojas:
                 raise RuntimeError('El Excel no contiene la hoja de inhumación esperada.')
-        if args.usar_rmd:
-            csv_temporal = Path(temporal) / 'tabla_inhumacion.csv'
-            with csv_temporal.open('w', encoding='utf-8', newline='') as archivo:
-                escritor = csv.writer(archivo)
-                escritor.writerow(('Mes de inicio de procesamiento',
-                                   'Número de sitios registrados',
-                                   'Total preliminar de víctimas localizadas'))
-                escritor.writerows(datos['mensual'])
-            ultimo_dia = calendar.monthrange(corte.year, corte.month)[1]
-            fecha_titulo = corte.replace(day=ultimo_dia)
-            html_generado = Path(temporal) / html.name
-            subprocess.run([
-                args.rscript, str(CARPETA / 'renderizar_reporte_integrado.R'),
-                str(CARPETA / 'reporte_mensual_integrado.Rmd'), str(csv_temporal),
-                fecha_titulo.isoformat(), str(html_generado),
-            ], check=True)
-            if not html_generado.is_file():
-                raise RuntimeError('R Markdown no creó el HTML esperado.')
-            html_generado.replace(html)
-            csv_temporal.replace(carpeta / 'tabla_inhumacion.csv')
-        else:
-            html_temporal = carpeta / (html.name + '.tmp')
-            html_temporal.write_text(contenido, encoding='utf-8')
-            html_temporal.replace(html)
+        html_temporal = carpeta / (html.name + '.tmp')
+        html_temporal.write_text(contenido, encoding='utf-8')
+        html_temporal.replace(html)
         excel_temporal.replace(excel)
     print(f'HTML: {html}')
     print(f'Excel: {excel}')
